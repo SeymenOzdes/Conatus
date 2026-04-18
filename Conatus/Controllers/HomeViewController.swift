@@ -5,12 +5,12 @@
 //  Created by Seymen Özdeş on 11.04.2026.
 //
 
+import SwiftUI
 import UIKit
 
 final class HomeViewController: UIViewController {
-
     // MARK: - View
-
+    
     private var homeView: HomeView { view as! HomeView }
 
     override func loadView() {
@@ -18,25 +18,31 @@ final class HomeViewController: UIViewController {
     }
 
     // MARK: - Lifecycle
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
-        homeView.searchBar.searchField.delegate = self
+        installActionBar()
+    }
+
+    // MARK: - Setup
+
+    private func installActionBar() {
+        let host = HomeGlassActionBarFactory.make(
+            onCalendar: { [weak self] in self?.handleCalendarTap() },
+            onMore:     { [weak self] in self?.handleMoreTap() }
+        )
+        addChild(host)
+        homeView.install(actionBar: host.view)
+        host.didMove(toParent: self)
     }
 
     // MARK: - Actions
 
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        super.touchesBegan(touches, with: event)
-        view.endEditing(true)
+    private func handleCalendarTap() {
+        // Hook for future calendar presentation.
     }
-}
 
-// MARK: - UITextFieldDelegate
-
-extension HomeViewController: UITextFieldDelegate {
-    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-        textField.resignFirstResponder()
-        return true
+    private func handleMoreTap() {
+        // Hook for future overflow menu.
     }
 }

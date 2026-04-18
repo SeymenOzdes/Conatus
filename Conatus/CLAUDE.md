@@ -5,8 +5,8 @@ This file provides guidance to Claude Code when working with this UIKit iOS proj
 ## Project Overview
 
 - **Name:** Conatus
-- **Type:** UIKit-based iOS app (no SwiftUI)
-- **Target OS:** iOS 14.0+
+- **Type:** UIKit-based iOS app. SwiftUI is used selectively for iOS 26 Liquid Glass surfaces, bridged into UIKit via `UIHostingController` (see `Views/HomeGlassActionBar.swift`).
+- **Target OS:** iOS 26.4+
 - **Bundle ID:** `me.ozdes.seymen.Conatus`
 - **Dependencies:** None (bare Xcode template)
 - **Compiler Settings:** MainActor isolation enabled, modern Swift concurrency expected

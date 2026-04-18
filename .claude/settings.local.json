@@ -2,7 +2,16 @@
   "permissions": {
     "allow": [
       "mcp__refero__refero_search_flows",
-      "mcp__refero__refero_get_flow"
+      "mcp__refero__refero_get_flow",
+      "mcp__figma__get_design_context",
+      "mcp__figma__get_screenshot",
+      "mcp__figma__get_metadata",
+      "Bash(xcodebuild -scheme Conatus -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16' build)",
+      "Bash(xcodebuild -scheme Conatus -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17' build)",
+      "Bash(xcrun simctl *)",
+      "Bash(open -a Simulator)",
+      "Bash(xcodebuild -showBuildSettings -scheme Conatus)",
+      "Bash(xcodebuild -scheme Conatus -configuration Debug -destination 'generic/platform=iOS Simulator' build)"
     ]
   }
 }

@@ -7,12 +7,13 @@
 
 import UIKit
 
-/// Root view for the home screen. Owns the gradient background, ambient blobs, and search bar layout.
+/// Root view for the home screen. Owns the gradient background, ambient blobs, and bottom action bar.
 final class HomeView: UIView {
 
     // MARK: - Public
 
-    let searchBar = GlassSearchBar()
+    let infoPill = GlassInfoPill()
+    private(set) var actionBar: UIView?
 
     // MARK: - Private
 
@@ -31,6 +32,9 @@ final class HomeView: UIView {
 
     private let blobA = AmbientBlobView(color: UIColor(red: 0.40, green: 0.10, blue: 0.80, alpha: 0.30))
     private let blobB = AmbientBlobView(color: UIColor(red: 0.10, green: 0.30, blue: 0.80, alpha: 0.20))
+
+    private var actionBarConstraints: [NSLayoutConstraint] = []
+    private var infoPillTrailingConstraint: NSLayoutConstraint?
 
     // MARK: - Init
 
@@ -51,6 +55,30 @@ final class HomeView: UIView {
         blobB.frame = CGRect(x: bounds.width - 220, y: bounds.height - 440, width: 280, height: 280)
     }
 
+    // MARK: - Public API
+
+    /// Installs the Liquid Glass action bar hosting view to the right of the info pill.
+    /// The bar sizes itself intrinsically — no width/height constraints are applied here.
+    func install(actionBar newBar: UIView) {
+        actionBar?.removeFromSuperview()
+        NSLayoutConstraint.deactivate(actionBarConstraints)
+        actionBarConstraints.removeAll()
+
+        addSubview(newBar)
+        actionBar = newBar
+
+        let infoPillTrailing = infoPill.trailingAnchor.constraint(equalTo: newBar.leadingAnchor, constant: -8)
+        infoPillTrailingConstraint?.isActive = false
+        infoPillTrailingConstraint = infoPillTrailing
+
+        actionBarConstraints = [
+            infoPillTrailing,
+            newBar.centerYAnchor.constraint(equalTo: infoPill.centerYAnchor),
+            newBar.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+        ]
+        NSLayoutConstraint.activate(actionBarConstraints)
+    }
+
     // MARK: - Setup
 
     private func setupBackground() {
@@ -60,14 +88,12 @@ final class HomeView: UIView {
     }
 
     private func setupLayout() {
-        addSubview(searchBar)
-        searchBar.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(infoPill)
 
         NSLayoutConstraint.activate([
-            searchBar.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20),
-            searchBar.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -20),
-            searchBar.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -12),
-            searchBar.heightAnchor.constraint(equalToConstant: 52),
+            infoPill.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            infoPill.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -12),
+            infoPill.heightAnchor.constraint(equalToConstant: 52),
         ])
     }
 }
