@@ -26,7 +26,6 @@ public struct SearchBarView: View {
                 .font(.system(size: 17))
                 .submitLabel(.search)
                 .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
 
             if !text.isEmpty {
                 Button {
