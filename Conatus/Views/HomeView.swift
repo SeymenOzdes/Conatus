@@ -14,7 +14,5 @@ final class HomeView: UIView {
     }
 
     required init?(coder: NSCoder) { fatalError("Use init(frame:)") }
-
-    // MARK: - Layout
-
+    
 }
