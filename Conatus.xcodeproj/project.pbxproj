@@ -148,6 +148,7 @@
 				DEVELOPMENT_TEAM = 6X4H6ASXW7;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Conatus/Info.plist;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Conatus uses your location to show nearby spots on the map.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -182,6 +183,7 @@
 				DEVELOPMENT_TEAM = 6X4H6ASXW7;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Conatus/Info.plist;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Conatus uses your location to show nearby spots on the map.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";

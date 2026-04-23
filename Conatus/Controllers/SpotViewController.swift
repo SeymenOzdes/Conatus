@@ -29,19 +29,37 @@ final class SpotViewController: UIViewController {
         return host
     }()
 
+    // MARK: - Map
+
+    private lazy var mapView: SpotMapView = {
+        let map = SpotMapView(frame: .zero)
+        map.translatesAutoresizingMaskIntoConstraints = false
+        return map
+    }()
+
     // MARK: - Lifecycle
 
     override func loadView() {
         view = SpotView()
-        view.backgroundColor = .systemBackground
     }
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        installMap()
         installSearchBar()
     }
 
     // MARK: - Layout
+
+    private func installMap() {
+        spotView.addSubview(mapView)
+        NSLayoutConstraint.activate([
+            mapView.topAnchor.constraint(equalTo: spotView.topAnchor),
+            mapView.leadingAnchor.constraint(equalTo: spotView.leadingAnchor),
+            mapView.trailingAnchor.constraint(equalTo: spotView.trailingAnchor),
+            mapView.bottomAnchor.constraint(equalTo: spotView.bottomAnchor),
+        ])
+    }
 
     private func installSearchBar() {
         addChild(searchBarHost)

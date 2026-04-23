@@ -16,20 +16,12 @@ enum CustomTab: String, CaseIterable {
         switch self {
         case .home: return "house.fill"
         case .spots: return "globe.asia.australia"
-        case .settings: return "gear"
+        case .settings: return "person.crop.circle"
         }
     }
-    //Neden yaptık anlamadım.
-    var actionSymbol: String {
-        switch self {
-        case .home: return "plus"
-        case .spots: return "plus"
-        case .settings: return "plus"
-        }
-        
-        var index: Int {
-            Self.allCases.firstIndex(of: self) ?? 0
-        }
+    
+    var index: Int {
+        Self.allCases.firstIndex(of: self) ?? 0
     }
 }
 
