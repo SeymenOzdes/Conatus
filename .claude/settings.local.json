@@ -15,7 +15,10 @@
       "WebSearch",
       "Bash(pandoc /Users/seymenozdes/Projects/Swift/Conatus/surfing-app-prd.md -o /Users/seymenozdes/Projects/Swift/Conatus/surfing-app-prd.docx --reference-doc=/dev/null)",
       "Bash(pandoc /Users/seymenozdes/Projects/Swift/Conatus/surfing-app-prd.md -o /Users/seymenozdes/Projects/Swift/Conatus/surfing-app-prd.docx)",
-      "Bash(xcodebuild -scheme Conatus -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build)"
+      "Bash(xcodebuild -scheme Conatus -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build)",
+      "Read(//usr/local/bin/**)",
+      "Read(//opt/homebrew/bin/**)",
+      "Bash(osascript *)"
     ]
   }
 }

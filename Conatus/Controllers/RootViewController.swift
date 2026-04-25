@@ -12,8 +12,9 @@ final class RootViewController: UIViewController {
 
     // MARK: - Children
 
+    private let detailPresenter = SpotDetailPresenter()
     private lazy var homeVC = HomeViewController()
-    private lazy var spotVC = SpotViewController()
+    private lazy var spotVC = SpotViewController(detailPresenter: detailPresenter)
     private var currentChild: UIViewController?
 
     // MARK: - Tab Bar
@@ -28,12 +29,26 @@ final class RootViewController: UIViewController {
         return host
     }()
 
+    // MARK: - Detail Sheet
+
+    private lazy var detailHost: UIHostingController<SpotDetailSheetContainer> = {
+        let root = SpotDetailSheetContainer(
+            presenter: detailPresenter,
+            onClose: { [weak self] in self?.dismissDetail() }
+        )
+        let host = UIHostingController(rootView: root)
+        host.view.backgroundColor = .clear
+        host.sizingOptions = .intrinsicContentSize
+        return host
+    }()
+
     // MARK: - Lifecycle
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         installTabBar()
+        installDetailSheet()
         show(tab: .home)
     }
 
@@ -41,6 +56,10 @@ final class RootViewController: UIViewController {
 
     private func show(tab: CustomTab) {
         let target: UIViewController = (tab == .spots) ? spotVC : homeVC
+
+        if tab != .spots {
+            dismissDetail()
+        }
 
         // Ensure the target is attached lazily when first needed.
         ensureAttached(target)
@@ -97,5 +116,27 @@ final class RootViewController: UIViewController {
             bar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8),
         ])
         tabBarHost.didMove(toParent: self)
+    }
+
+    private func installDetailSheet() {
+        addChild(detailHost)
+        let sheet = detailHost.view!
+        sheet.translatesAutoresizingMaskIntoConstraints = false
+        // Insert above the tab bar so the sheet floats over it in z-order.
+        view.addSubview(sheet)
+        NSLayoutConstraint.activate([
+            sheet.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            sheet.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            sheet.bottomAnchor.constraint(equalTo: tabBarHost.view.topAnchor, constant: -8),
+        ])
+        detailHost.didMove(toParent: self)
+    }
+
+    // MARK: - Actions
+
+    private func dismissDetail() {
+        guard detailPresenter.selectedSpot != nil else { return }
+        detailPresenter.selectedSpot = nil
+        spotVC.deselectAllSpots()
     }
 }
