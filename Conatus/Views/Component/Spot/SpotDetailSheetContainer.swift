@@ -15,11 +15,12 @@ final class SpotDetailPresenter {
 struct SpotDetailSheetContainer: View {
     @Bindable var presenter: SpotDetailPresenter
     var onClose: () -> Void
+    var onExpand: () -> Void
 
     var body: some View {
         Group {
             if let spot = presenter.selectedSpot {
-                SpotDetailSheetView(spot: spot, onClose: onClose)
+                SpotDetailSheetView(spot: spot, onClose: onClose, onExpand: onExpand)
                     .padding(.horizontal, 16)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }

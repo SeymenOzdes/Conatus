@@ -58,7 +58,7 @@ final class SpotMapView: MKMapView {
         setRegion(
             MKCoordinateRegion(
                 center: CLLocationCoordinate2D(latitude: 38.2887, longitude: 26.3778),
-                span: MKCoordinateSpan(latitudeDelta: 0.6, longitudeDelta: 0.6)
+                span: MKCoordinateSpan(latitudeDelta: 0.2, longitudeDelta: 0.2)
             ),
             animated: false
         )

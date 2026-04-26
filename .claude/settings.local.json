@@ -18,7 +18,10 @@
       "Bash(xcodebuild -scheme Conatus -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build)",
       "Read(//usr/local/bin/**)",
       "Read(//opt/homebrew/bin/**)",
-      "Bash(osascript *)"
+      "Bash(osascript *)",
+      "Bash(xcodebuild -scheme Conatus -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16' -quiet build)",
+      "Bash(xcodebuild -scheme Conatus -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet build)",
+      "Bash(echo \"---EXIT: $?---\")"
     ]
   }
 }

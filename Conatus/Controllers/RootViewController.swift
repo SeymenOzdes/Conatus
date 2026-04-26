@@ -34,7 +34,8 @@ final class RootViewController: UIViewController {
     private lazy var detailHost: UIHostingController<SpotDetailSheetContainer> = {
         let root = SpotDetailSheetContainer(
             presenter: detailPresenter,
-            onClose: { [weak self] in self?.dismissDetail() }
+            onClose: { [weak self] in self?.dismissDetail() },
+            onExpand: { [weak self] in self?.presentExpandedDetail() }
         )
         let host = UIHostingController(rootView: root)
         host.view.backgroundColor = .clear
@@ -136,7 +137,24 @@ final class RootViewController: UIViewController {
 
     private func dismissDetail() {
         guard detailPresenter.selectedSpot != nil else { return }
+        if presentedViewController != nil {
+            dismiss(animated: true)
+        }
         detailPresenter.selectedSpot = nil
         spotVC.deselectAllSpots()
+    }
+
+    private func presentExpandedDetail() {
+        guard let spot = detailPresenter.selectedSpot,
+              presentedViewController == nil else { return }
+
+        let host = UIHostingController(
+            rootView: SpotDetailView(
+                spot: spot,
+                onClose: { [weak self] in self?.dismiss(animated: true) }
+            )
+        )
+        host.modalPresentationStyle = .fullScreen
+        present(host, animated: true)
     }
 }

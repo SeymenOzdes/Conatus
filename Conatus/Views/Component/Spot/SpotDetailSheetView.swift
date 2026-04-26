@@ -11,6 +11,7 @@ import Charts
 struct SpotDetailSheetView: View {
     let spot: Spot
     var onClose: () -> Void
+    var onExpand: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -26,10 +27,20 @@ struct SpotDetailSheetView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(spot.name)
-                .font(.title3.weight(.semibold))
+                .font(.title2.weight(.semibold))
             Spacer()
+            Button(action: onExpand) {
+                Image(systemName: "chevron.up")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+                    .contentShape(.circle)
+                    .glassEffect(.regular.interactive(), in: .circle)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Expand details")
             Button(action: onClose) {
                 Image(systemName: "xmark")
                     .font(.system(size: 12, weight: .bold))
@@ -58,14 +69,15 @@ struct SpotDetailSheetView: View {
     }
 
     // MARK: - Wave chart
-    //wave section uikit ile özel chart yapılmalı!!!!
     private var waveSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Waves — next 12 h")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
+                
                 Spacer()
+                
                 Text(maxHeightLabel)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.primary)
@@ -106,71 +118,12 @@ struct SpotDetailSheetView: View {
     }
 }
 
-// MARK: - Chips
-
-private struct MetricChip: View {
-    let symbol: String
-    let primary: String
-    let secondary: String
-    let tint: Color
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: symbol)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(tint)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(primary)
-                    .font(.system(size: 17, weight: .semibold))
-                Text(secondary)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .glassEffect(.regular, in: .capsule)
-    }
-}
-
-private struct WindChip: View {
-    let wind: Wind
-    let tint: Color
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "location.north.fill")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(tint)
-                .rotationEffect(.degrees(wind.directionDegrees))
-            VStack(alignment: .leading, spacing: 0) {
-                Text("\(Int(round(wind.speedKmh))) km/h")
-                    .font(.system(size: 17, weight: .semibold))
-                Text("\(compass(wind.directionDegrees)) wind")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .glassEffect(.regular, in: .capsule)
-    }
-
-    private func compass(_ degrees: Double) -> String {
-        let points = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-        let normalized = (degrees.truncatingRemainder(dividingBy: 360) + 360)
-            .truncatingRemainder(dividingBy: 360)
-        let index = Int((normalized + 22.5) / 45) % 8
-        return points[index]
-    }
-}
-
 #Preview {
     ZStack {
         Color.cyan.opacity(0.3).ignoresSafeArea()
         VStack {
             Spacer()
-            SpotDetailSheetView(spot: Spot.samples[0], onClose: {})
+            SpotDetailSheetView(spot: Spot.samples[0], onClose: {}, onExpand: {})
                 .padding(16)
         }
     }
