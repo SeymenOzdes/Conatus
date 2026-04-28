@@ -14,7 +14,10 @@ final class SpotDetailPresenter {
 
     func select(_ spot: Spot?) {
         selectedSpot = spot
-        guard let spot else { return }
+        guard let spot else {
+            summarizer.cancel()
+            return
+        }
         Task { await summarizer.generate(for: spot) }
     }
 }

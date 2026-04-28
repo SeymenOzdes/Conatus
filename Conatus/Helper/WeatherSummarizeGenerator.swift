@@ -32,6 +32,12 @@ final class WeatherSummarizeGenerator {
         await newTask.value
     }
 
+    func cancel() {
+        task?.cancel()
+        task = nil
+        phase = .idle
+    }
+
     private func run(spot: Spot) async {
         guard case .available = SystemLanguageModel.default.availability else {
             phase = .failed
