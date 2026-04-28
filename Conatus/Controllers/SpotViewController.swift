@@ -69,10 +69,10 @@ final class SpotViewController: UIViewController {
 
     private func installMap() {
         mapView.onSpotSelected = { [weak self] spot in
-            self?.detailPresenter.selectedSpot = spot
+            self?.detailPresenter.select(spot)
         }
         mapView.onSpotDeselected = { [weak self] in
-            self?.detailPresenter.selectedSpot = nil
+            self?.detailPresenter.select(nil)
         }
         spotView.addSubview(mapView)
         NSLayoutConstraint.activate([

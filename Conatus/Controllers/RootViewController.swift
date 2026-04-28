@@ -140,7 +140,7 @@ final class RootViewController: UIViewController {
         if presentedViewController != nil {
             dismiss(animated: true)
         }
-        detailPresenter.selectedSpot = nil
+        detailPresenter.select(nil)
         spotVC.deselectAllSpots()
     }
 
@@ -151,10 +151,13 @@ final class RootViewController: UIViewController {
         let host = UIHostingController(
             rootView: SpotDetailView(
                 spot: spot,
-                onClose: { [weak self] in self?.dismiss(animated: true) }
+                onClose: { [weak self] in self?.dismiss(animated: true) },
+                summarizer: detailPresenter.summarizer
             )
         )
-        host.modalPresentationStyle = .fullScreen
+        host.preferredTransition = .zoom { [weak self] _ in
+            self?.detailHost.view
+        }
         present(host, animated: true)
     }
 }

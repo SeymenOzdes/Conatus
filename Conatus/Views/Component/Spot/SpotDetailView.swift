@@ -11,6 +11,7 @@ import Charts
 struct SpotDetailView: View {
     let spot: Spot
     var onClose: () -> Void
+    let summarizer: WeatherSummarizeGenerator
 
     var body: some View {
         ZStack {
@@ -40,14 +41,14 @@ struct SpotDetailView: View {
 
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(spot.name)
                     .font(.largeTitle.weight(.bold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                Text(Date.now, format: .dateTime.weekday(.wide).day().month(.wide))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+
+                aiRecommendation
+                    .animation(.easeInOut(duration: 0.25), value: summarizer.phase)
             }
             Spacer()
             Button(action: onClose) {
@@ -60,6 +61,55 @@ struct SpotDetailView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Close")
+        }
+    }
+
+    @ViewBuilder
+    private var aiRecommendation: some View {
+        switch summarizer.phase {
+        case .idle, .loading:
+            VStack(alignment: .leading, spacing: 4) {
+                Text("VERDICT")
+                    .font(.caption.weight(.bold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(Color.secondary.opacity(0.2), in: Capsule())
+                    .foregroundStyle(.secondary)
+                Text("Analyzing the next 12 hours for a great session…")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+            }
+            .redacted(reason: .placeholder)
+        case .ready(let recommendation):
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(recommendation.verdict.rawValue)
+                        .font(.caption.weight(.bold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(verdictColor(recommendation.verdict).opacity(0.2), in: Capsule())
+                        .foregroundStyle(verdictColor(recommendation.verdict))
+                    Label(recommendation.bestWindow, systemImage: "clock")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+                Text(recommendation.summary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+            }
+            .transition(.opacity)
+        case .failed:
+            EmptyView()
+        }
+    }
+
+    private func verdictColor(_ verdict: SurfVerdict) -> Color {
+        switch verdict {
+        case .go:    return .green
+        case .maybe: return .orange
+        case .skip:  return .red
         }
     }
 
@@ -293,5 +343,5 @@ struct SpotDetailView: View {
 }
 
 #Preview {
-    SpotDetailView(spot: Spot.samples[0], onClose: {})
+    SpotDetailView(spot: Spot.samples[0], onClose: {}, summarizer: WeatherSummarizeGenerator())
 }

@@ -10,6 +10,13 @@ import SwiftUI
 @Observable
 final class SpotDetailPresenter {
     var selectedSpot: Spot?
+    let summarizer = WeatherSummarizeGenerator()
+
+    func select(_ spot: Spot?) {
+        selectedSpot = spot
+        guard let spot else { return }
+        Task { await summarizer.generate(for: spot) }
+    }
 }
 
 struct SpotDetailSheetContainer: View {
