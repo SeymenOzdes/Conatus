@@ -8,7 +8,6 @@
 import UIKit
 import SwiftUI
 import MapKit
-import CoreLocation
 
 final class SpotAnnotation: NSObject, MKAnnotation {
     let spot: Spot
@@ -23,8 +22,6 @@ final class SpotAnnotation: NSObject, MKAnnotation {
 final class SpotMapView: MKMapView {
 
     private static let reuseID = "SpotMarker"
-
-    private let locationManager = CLLocationManager()
 
     // MARK: - Callbacks
 
@@ -46,7 +43,7 @@ final class SpotMapView: MKMapView {
         let config = MKStandardMapConfiguration(elevationStyle: .realistic, emphasisStyle: .default)
         config.pointOfInterestFilter = .includingAll
         preferredConfiguration = config
-        showsUserLocation = true
+        showsUserLocation = UserPreferences.current.permissions.location == .granted
         showsCompass = false
         showsScale = false
         isPitchEnabled = true
@@ -64,7 +61,6 @@ final class SpotMapView: MKMapView {
         )
 
         addAnnotations(Spot.samples.map(SpotAnnotation.init(spot:)))
-        locationManager.requestWhenInUseAuthorization()
     }
 }
 

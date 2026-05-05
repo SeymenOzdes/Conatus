@@ -9,6 +9,11 @@ import SwiftUI
 import UIKit
 import MapKit
 
+@Observable
+final class SpotSearchState {
+    var query: String = ""
+}
+
 final class SpotViewController: UIViewController {
 
     // MARK: - View
@@ -17,16 +22,42 @@ final class SpotViewController: UIViewController {
 
     // MARK: - Search
 
-    private struct SearchBarContainer: View {
-        @State private var query = ""
+    private let searchState = SpotSearchState()
+
+    private struct SearchOverlayView: View {
+        @Bindable var state: SpotSearchState
+        let spots: [Spot]
+        var onSelect: (Spot) -> Void
+
+        private var filtered: [Spot] {
+            guard !state.query.isEmpty else { return [] }
+            return Array(
+                spots
+                    .filter { $0.name.localizedCaseInsensitiveContains(state.query) }
+                    .prefix(5)
+            )
+        }
+
         var body: some View {
-            SearchBarView(text: $query, placeholder: "Search Spots")
+            VStack(spacing: 8) {
+                SearchBarView(text: $state.query, placeholder: "Search Spots")
+                if !filtered.isEmpty {
+                    SearchSuggestionsView(spots: filtered, onSelect: onSelect)
+                        .transition(.scale(scale: 0.9, anchor: .top).combined(with: .opacity))
+                }
+            }
+            .animation(.spring(duration: 0.38, bounce: 0.2), value: filtered.map(\.id))
         }
     }
 
-    private lazy var searchBarHost: UIHostingController<SearchBarContainer> = {
-        let host = UIHostingController(rootView: SearchBarContainer())
+    private lazy var searchOverlayHost: UIHostingController<SearchOverlayView> = {
+        let host = UIHostingController(
+            rootView: SearchOverlayView(state: searchState, spots: Spot.samples) { [weak self] spot in
+                self?.selectFromSearch(spot)
+            }
+        )
         host.view.backgroundColor = .clear
+        host.sizingOptions = .intrinsicContentSize
         return host
     }()
 
@@ -84,19 +115,31 @@ final class SpotViewController: UIViewController {
     }
 
     private func installSearchBar() {
-        addChild(searchBarHost)
-        let bar = searchBarHost.view!
-        bar.translatesAutoresizingMaskIntoConstraints = false
-        spotView.addSubview(bar)
+        addChild(searchOverlayHost)
+        let overlay = searchOverlayHost.view!
+        overlay.translatesAutoresizingMaskIntoConstraints = false
+        spotView.addSubview(overlay)
         NSLayoutConstraint.activate([
-            bar.topAnchor.constraint(equalTo: spotView.safeAreaLayoutGuide.topAnchor, constant: 12),
-            bar.leadingAnchor.constraint(equalTo: spotView.safeAreaLayoutGuide.leadingAnchor, constant: 16),
-            bar.trailingAnchor.constraint(equalTo: spotView.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+            overlay.topAnchor.constraint(equalTo: spotView.safeAreaLayoutGuide.topAnchor, constant: 12),
+            overlay.leadingAnchor.constraint(equalTo: spotView.safeAreaLayoutGuide.leadingAnchor, constant: 16),
+            overlay.trailingAnchor.constraint(equalTo: spotView.safeAreaLayoutGuide.trailingAnchor, constant: -16),
         ])
-        searchBarHost.didMove(toParent: self)
+        searchOverlayHost.didMove(toParent: self)
     }
 
     // MARK: - Actions
+
+    // `Spot.samples` regenerates UUIDs on every access, so match by name (unique across samples).
+    private func selectFromSearch(_ spot: Spot) {
+        let target = mapView.annotations
+            .compactMap { $0 as? SpotAnnotation }
+            .first { $0.spot.name == spot.name }
+        guard let annotation = target else { return }
+        searchState.query = spot.name
+        view.endEditing(true)
+        mapView.setCenter(annotation.coordinate, animated: true)
+        mapView.selectAnnotation(annotation, animated: true)
+    }
 
     func deselectAllSpots() {
         guard isViewLoaded else { return }
@@ -105,4 +148,3 @@ final class SpotViewController: UIViewController {
         }
     }
 }
-

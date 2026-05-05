@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		2E663BE32FA9532000FF9293 /* Beam in Frameworks */ = {isa = PBXBuildFile; productRef = 2E663BE22FA9532000FF9293 /* Beam */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		2ED5FCDE2F8A94930070AF62 /* Conatus.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Conatus.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -36,6 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2E663BE32FA9532000FF9293 /* Beam in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +83,7 @@
 			);
 			name = Conatus;
 			packageProductDependencies = (
+				2E663BE22FA9532000FF9293 /* Beam */,
 			);
 			productName = Conatus;
 			productReference = 2ED5FCDE2F8A94930070AF62 /* Conatus.app */;
@@ -107,6 +113,9 @@
 			);
 			mainGroup = 2ED5FCD52F8A94930070AF62;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				2E663BE12FA9532000FF9293 /* XCRemoteSwiftPackageReference "beam" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2ED5FCDF2F8A94930070AF62 /* Products */;
 			projectDirPath = "";
@@ -143,11 +152,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Conatus/Conatus.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 6X4H6ASXW7;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Conatus/Info.plist;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Conatus reads your workout and heart-rate data to recap each surf session.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Conatus uses your location to show nearby spots on the map.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -178,11 +189,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Conatus/Conatus.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 6X4H6ASXW7;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Conatus/Info.plist;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Conatus reads your workout and heart-rate data to recap each surf session.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Conatus uses your location to show nearby spots on the map.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -351,6 +364,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		2E663BE12FA9532000FF9293 /* XCRemoteSwiftPackageReference "beam" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/tornikegomareli/beam";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		2E663BE22FA9532000FF9293 /* Beam */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2E663BE12FA9532000FF9293 /* XCRemoteSwiftPackageReference "beam" */;
+			productName = Beam;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 2ED5FCD62F8A94930070AF62 /* Project object */;
 }

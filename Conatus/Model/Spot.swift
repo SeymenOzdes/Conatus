@@ -108,7 +108,7 @@ struct WaveSample: Identifiable {
 // MARK: - Sample data
 
 extension Spot {
-    static var samples: [Spot] {
+    static let samples: [Spot] = {
         [
             Spot(
                 name: "Alaçatı",
@@ -150,7 +150,7 @@ extension Spot {
                 )
             ),
         ]
-    }
+    }()
 
     private static func hourlyWaves(heights: [Double], period: Double) -> [WaveSample] {
         let calendar = Calendar.current

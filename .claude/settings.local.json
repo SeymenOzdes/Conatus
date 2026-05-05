@@ -21,7 +21,11 @@
       "Bash(osascript *)",
       "Bash(xcodebuild -scheme Conatus -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16' -quiet build)",
       "Bash(xcodebuild -scheme Conatus -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet build)",
-      "Bash(echo \"---EXIT: $?---\")"
+      "Bash(echo \"---EXIT: $?---\")",
+      "Bash(sips -g pixelWidth -g pixelHeight /tmp/conatus_typed.png)",
+      "Bash(xcodebuild -scheme Conatus -configuration Debug -destination 'platform=iOS Simulator,id=E0F7F9E0-758A-4BA0-A4F7-AFBE06DD6088' -derivedDataPath /tmp/conatus-dd build)",
+      "Bash(mkdir -p ~/.lazyweb)",
+      "Bash(echo -n \"81164b03-f60a-462f-b618-68308160a3ab\")"
     ]
   }
 }

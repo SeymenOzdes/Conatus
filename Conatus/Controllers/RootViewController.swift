@@ -65,22 +65,12 @@ final class RootViewController: UIViewController {
         // Ensure the target is attached lazily when first needed.
         ensureAttached(target)
         target.loadViewIfNeeded()
+        target.view.isHidden = false
 
-        if let current = currentChild {
-            // If we already have a current child, and it's different, hide it and show the target.
-            guard current !== target else { return }
+        if let current = currentChild, current !== target {
             current.view.isHidden = true
-            target.view.isHidden = false
-            currentChild = target
-        } else {
-            // First time: hide the other controller if it's attached, show target.
-            let other = (target === homeVC) ? spotVC : homeVC
-            if other.view.superview != nil {
-                other.view.isHidden = true
-            }
-            target.view.isHidden = false
-            currentChild = target
         }
+        currentChild = target
     }
 
     /// Ensures the given child controller's view is attached and constrained below the tab bar.

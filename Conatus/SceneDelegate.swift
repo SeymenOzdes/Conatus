@@ -14,9 +14,27 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = (scene as? UIWindowScene) else { return }
         let window = UIWindow(windowScene: windowScene)
-        window.rootViewController = RootViewController()
+        window.rootViewController = makeRoot(in: window)
         window.makeKeyAndVisible()
         self.window = window
+    }
+
+    // MARK: - Root
+
+    private func makeRoot(in window: UIWindow) -> UIViewController {
+        return OnboardingHostController { [weak self, weak window] in
+            guard let window else { return }
+            self?.swapRoot(to: RootViewController(), in: window)
+        }
+    }
+
+    private func swapRoot(to viewController: UIViewController, in window: UIWindow) {
+        UIView.transition(
+            with: window,
+            duration: 0.4,
+            options: .transitionCrossDissolve,
+            animations: { window.rootViewController = viewController }
+        )
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {
