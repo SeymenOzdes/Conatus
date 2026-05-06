@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Research: Sports & Surfing App Home Screens</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f13; color: #e8e8ed; line-height: 1.65; font-size: 16px; }
+  .container { max-width: 920px; margin: 0 auto; padding: 48px 24px 80px; }
+  h1 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 8px; letter-spacing: -0.5px; }
+  .subtitle { color: #8e8e9a; font-size: 14px; margin-bottom: 40px; }
+  h2 { font-size: 20px; font-weight: 600; color: #fff; margin: 48px 0 16px; border-bottom: 1px solid #1e1e28; padding-bottom: 10px; }
+  h3 { font-size: 16px; font-weight: 600; color: #c5c5d0; margin: 28px 0 10px; }
+  p { margin-bottom: 14px; color: #c5c5d0; }
+  ul, ol { padding-left: 22px; margin-bottom: 16px; }
+  li { margin-bottom: 8px; color: #c5c5d0; }
+  strong { color: #e8e8ed; }
+  .tldr { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border: 1px solid #2a4a8a; border-radius: 12px; padding: 24px 28px; margin-bottom: 40px; }
+  .tldr p { color: #a8c4f0; margin-bottom: 8px; }
+  .tldr p:last-child { margin-bottom: 0; }
+  .tldr-label { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #4a90d9; text-transform: uppercase; margin-bottom: 10px; }
+
+  /* ASCII mockup */
+  pre { background: #1a1a22; border: 1px solid #2a2a38; border-radius: 8px; padding: 16px 20px; overflow-x: auto; font-size: 13px; color: #88c0a8; margin: 16px 0 24px; line-height: 1.5; }
+
+  /* Gallery */
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; margin: 24px 0; }
+  .gallery-item { background: #1a1a22; border-radius: 12px; overflow: hidden; border: 1px solid #2a2a38; }
+  .gallery-item img { width: 100%; display: block; object-fit: cover; max-height: 460px; }
+  .gallery-caption { padding: 12px 14px; font-size: 13px; color: #8e8e9a; line-height: 1.45; }
+  .gallery-caption strong { color: #c5c5d0; display: block; margin-bottom: 3px; }
+  .source-badge { display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: 0.8px; padding: 2px 7px; border-radius: 4px; background: #2a2a3a; color: #7878a0; margin-top: 6px; text-transform: uppercase; }
+
+  /* Section divider */
+  .section-divider { display: flex; align-items: center; gap: 12px; margin: 48px 0 8px; }
+  .section-divider span { font-size: 13px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; white-space: nowrap; }
+  .section-divider.sports span { color: #e67a3a; }
+  .section-divider.surf span { color: #3ab4e6; }
+  .section-divider::after { content: ''; flex: 1; height: 1px; }
+  .section-divider.sports::after { background: #e67a3a44; }
+  .section-divider.surf::after { background: #3ab4e644; }
+
+  /* Pattern pills */
+  .pattern-grid { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+  .pattern-pill { background: #1e2a1e; border: 1px solid #2e4a2e; border-radius: 20px; padding: 6px 14px; font-size: 13px; color: #7ec87e; }
+  .pattern-pill.red { background: #2a1e1e; border-color: #4a2e2e; color: #e87e7e; }
+  .pattern-pill.blue { background: #1e1e2a; border-color: #2e2e4a; color: #7e9ee8; }
+
+  /* Recommendation cards */
+  .rec-list { counter-reset: rec; list-style: none; padding-left: 0; }
+  .rec-list li { counter-increment: rec; background: #16161e; border-radius: 10px; padding: 16px 18px 16px 56px; margin-bottom: 12px; position: relative; border: 1px solid #2a2a38; }
+  .rec-list li::before { content: counter(rec); position: absolute; left: 18px; top: 50%; transform: translateY(-50%); width: 26px; height: 26px; background: #2a2a4a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #7878c0; text-align: center; line-height: 26px; }
+  .rec-list li strong { color: #c8c8e8; }
+
+  footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid #1e1e28; font-size: 12px; color: #555568; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Design Research: Sports & Surfing App Home Screens</h1>
+  <p class="subtitle">Conatus iOS · May 6, 2026 · Lazyweb + Domain Research</p>
+
+  <div class="tldr">
+    <div class="tldr-label">TL;DR</div>
+    <p><strong>Sports apps</strong> have converged on a 3-layer home: live score strip → personalized feed → news/video, anchored by bold team branding. The differentiator is <strong>real-time feel</strong> — score cards with LIVE badges and broadcast links make users feel plugged in even before kickoff.</p>
+    <p><strong>Surfing apps</strong> (Surfline, MSW, Carrot Surf) aren't in Lazyweb's DB at volume, so this section draws from adjacent outdoor/weather apps + category knowledge. The differentiator is <strong>go/no-go clarity</strong> — a single rating that tells a surfer in 2 seconds whether it's worth paddling out.</p>
+    <p><strong>For Conatus:</strong> BestWindowCalculator + on-device AI summary is a rare advantage. Lead the home screen with that signal — not raw numbers.</p>
+  </div>
+
+  <!-- SPORTS SECTION -->
+  <div class="section-divider sports"><span>🏆 Sports App Home Screen</span></div>
+
+  <h2>Recommendations</h2>
+  <ol class="rec-list">
+    <li><strong>Pinned teams strip as the first scroll-stop</strong> — horizontal chips at the top showing followed teams' next game time + score/status. Every top sports app does this.</li>
+    <li><strong>Hero card for the most interesting live/upcoming match</strong> — full-width, team logos, start time with countdown, broadcast info.</li>
+    <li><strong>News feed below the fold</strong> — large hero images, author + comment count, filtered to followed sports. Users scan images, not headlines first.</li>
+    <li><strong>No empty states</strong> — if no games today, show yesterday's results or tomorrow's schedule. Always keep the screen alive.</li>
+    <li><strong>Bottom nav: 5 items max</strong> — Home, Scores, Watch/Video, My Teams, More.</li>
+  </ol>
+
+  <h3>Layout Sketch</h3>
+  <pre>
+┌──────────────────────────────┐
+│  🏄 Good afternoon, Seymen  │
+├──────────────────────────────┤
+│  ← [NBA] [NFL] [Surf] →     │  ← personalization strip
+├──────────────────────────────┤
+│                              │
+│   HERO MATCH CARD            │  ← full-width
+│   Lakers  vs  Celtics        │
+│   LIVE  Q3  87–84   ESPN ▶  │
+│                              │
+├──────────────────────────────┤
+│  Top Stories  ────────────── │
+│  [img] Headline, author, 💬  │
+│  [img] Headline, author, 💬  │
+│  [img] ...                   │
+└──────────────────────────────┘</pre>
+
+  <h2>Key Examples — Sports</h2>
+  <div class="gallery">
+    <div class="gallery-item">
+      <img src="references/apple-news-sports-home.png" alt="Apple News Sports">
+      <div class="gallery-caption">
+        <strong>Apple News — Sports Home</strong>
+        "All Sports" filter, horizontal score card strip (live/final), then "Top Stories" feed. The gold standard 3-layer structure.
+        <span class="source-badge">Lazyweb</span>
+      </div>
+    </div>
+    <div class="gallery-item">
+      <img src="references/sleeper-sports-home.png" alt="Sleeper">
+      <div class="gallery-caption">
+        <strong>Sleeper — Sports Community</strong>
+        Live game score cards at top, social fantasy feed below with reactions, comments, shares. Scores + community in one scroll.
+        <span class="source-badge">Lazyweb</span>
+      </div>
+    </div>
+    <div class="gallery-item">
+      <img src="references/the-athletic-home-feed.png" alt="The Athletic">
+      <div class="gallery-caption">
+        <strong>The Athletic — Home Feed</strong>
+        Team strip for quick scores, then full-bleed hero image story cards. Premium journalism-first approach with score access always reachable.
+        <span class="source-badge">Lazyweb</span>
+      </div>
+    </div>
+    <div class="gallery-item">
+      <img src="references/fotmob-fixtures-home.png" alt="Fotmob">
+      <div class="gallery-caption">
+        <strong>Fotmob — Fixtures Home</strong>
+        Matches grouped by league, date navigation strip, LIVE badge, expandable league sections. Best-in-class fixture density.
+        <span class="source-badge">Lazyweb</span>
+      </div>
+    </div>
+    <div class="gallery-item">
+      <img src="references/espn-scores-screen.png" alt="ESPN Scores">
+      <div class="gallery-caption">
+        <strong>ESPN — Scores Screen</strong>
+        Match card with teams, live status, score, and TV/streaming provider badge. "Watch" CTA integrated directly into the card.
+        <span class="source-badge">Lazyweb</span>
+      </div>
+    </div>
+    <div class="gallery-item">
+      <img src="references/mls-home-dashboard.png" alt="MLS Home">
+      <div class="gallery-caption">
+        <strong>MLS — Home Dashboard</strong>
+        Upcoming match schedule cards → streaming subscription promo → "Your Next Watch" video section. Layered hierarchy from data to media.
+        <span class="source-badge">Lazyweb</span>
+      </div>
+    </div>
+    <div class="gallery-item">
+      <img src="references/nba-live-scores-tab.png" alt="NBA Scores">
+      <div class="gallery-caption">
+        <strong>NBA — Live Scores Tab</strong>
+        Live and completed matchup cards, team logos, score, quarter/time, series context, broadcast links. Spoiler toggle is a nice touch.
+        <span class="source-badge">Lazyweb</span>
+      </div>
+    </div>
+    <div class="gallery-item">
+      <img src="references/fixtured-schedule-home.png" alt="Fixtured Schedule">
+      <div class="gallery-caption">
+        <strong>Fixtured — Schedule Home</strong>
+        Day-by-day fixture timeline. Shows score cards for finished games and a "next game" card when today is quiet. Never goes blank.
+        <span class="source-badge">Lazyweb</span>
+      </div>
+    </div>
+  </div>
+
+  <h2>Sports Home Patterns</h2>
+  <div class="pattern-grid">
+    <div class="pattern-pill">Live score strip at top</div>
+    <div class="pattern-pill">Team/league filter chips</div>
+    <div class="pattern-pill">Full-bleed news images</div>
+    <div class="pattern-pill">LIVE badge + red dot</div>
+    <div class="pattern-pill">5-item bottom nav</div>
+    <div class="pattern-pill">Dark mode first</div>
+    <div class="pattern-pill">Broadcast link on score card</div>
+    <div class="pattern-pill">Comment count on articles</div>
+  </div>
+
+  <h2>Sports Anti-Patterns</h2>
+  <div class="pattern-grid">
+    <div class="pattern-pill red">Walls of plain-text scores</div>
+    <div class="pattern-pill red">Login wall before any content</div>
+    <div class="pattern-pill red">Hamburger for core sport nav</div>
+    <div class="pattern-pill red">Casino/betting banners as hero</div>
+    <div class="pattern-pill red">Blank empty states</div>
+  </div>
+
+  <!-- SURFING SECTION -->
+  <div class="section-divider surf" style="margin-top: 64px;"><span>🌊 Surfing App Home Screen</span></div>
+
+  <h2>Recommendations for Conatus</h2>
+  <ol class="rec-list">
+    <li><strong>Lead with the go/no-go verdict</strong> — a prominent rating badge (★★★ or EPIC / GOOD / POOR) before any raw numbers. BestWindowCalculator already produces this — surface it as the hero element.</li>
+    <li><strong>AI summary as the subtitle</strong> — 1–2 lines of on-device AI narrative ("2–3ft clean peaks, offshore winds until noon") directly under the rating. Users read this before they look at charts.</li>
+    <li><strong>Best window callout chip</strong> — a time-chip ("Best: 7am – 10am") in the hero card, not buried in a scroll. This is Conatus's unique differentiator vs generic weather apps.</li>
+    <li><strong>Hourly forecast strip below</strong> — wave height bars, wind direction arrows, tide state markers. The Weather Channel home shows the right pattern for hourly strips.</li>
+    <li><strong>Multi-spot switcher at top</strong> — horizontal chips for pinned spots. One tap to switch spots without leaving the home screen.</li>
+    <li><strong>Nearby spots list with quality chips</strong> — shows 2–3 closest spots with their rating. Encourages exploration and builds the "local surf guide" feeling.</li>
+  </ol>
+
+  <h3>Layout Sketch</h3>
+  <pre>
+┌──────────────────────────────┐
+│  ← Ericeira Beach        ↕  │  ← spot switcher
+│  ★★★ GOOD                   │  ← go/no-go verdict (BestWindowCalculator)
+│  "Clean 2–3ft, light         │
+│   offshore. Best 7–10am"    │  ← AI summary (WeatherSummarizeGenerator)
+│                              │
+│  Best: 7am – 10am  🕐       │  ← best window callout chip
+├──────────────────────────────┤
+│  ← 6am│7am│8am│9am│10am → │  ← hourly strip
+│   2ft  3ft  3ft  2ft  1ft  │
+│   ↙   ↙    ↙    ↗    ↗    │  ← wind direction arrows
+│  ▼ low  ─ mid  ▲ high      │  ← tide state
+├──────────────────────────────┤
+│  [Log Session]  [View Map]   │  ← quick actions
+├──────────────────────────────┤
+│  📍 Nearby Spots ─────────── │
+│  Praia do Norte  ★★ Fair    │
+│  Supertubos      ★★★ Good  │
+└──────────────────────────────┘</pre>
+
+  <h2>Key Examples — Adjacent Apps (Surfing)</h2>
+  <div class="gallery">
+    <div class="gallery-item">
+      <img src="references/night-sky-conditions-card.png" alt="Night Sky Conditions">
+      <div class="gallery-caption">
+        <strong>Night Sky — Conditions Card</strong>
+        "Stargazing Conditions" card with quality score, temp, cloud cover, and a link to expand. This is the exact pattern Conatus needs for a surf quality hero card: one card, one verdict, one tap.
+        <span class="source-badge">Lazyweb</span>
+      </div>
+    </div>
+    <div class="gallery-item">
+      <img src="references/onx-fish-outdoor-weather-sheet.png" alt="onX Fish Weather">
+      <div class="gallery-caption">
+        <strong>onX Fish — Outdoor Weather Sheet</strong>
+        Map-based outdoor app with a collapsible bottom sheet showing conditions (temp, wind, precipitation, sunrise/sunset) for the selected spot. A great model for Conatus's spot-detail layer.
+        <span class="source-badge">Lazyweb</span>
+      </div>
+    </div>
+  </div>
+
+  <h2>Surfing App Patterns (Domain Knowledge)</h2>
+  <div class="pattern-grid">
+    <div class="pattern-pill blue">Single quality rating as hero</div>
+    <div class="pattern-pill blue">AI/plain-English conditions summary</div>
+    <div class="pattern-pill blue">Best window time callout</div>
+    <div class="pattern-pill blue">Hourly wave + wind chart</div>
+    <div class="pattern-pill blue">Tide markers on hourly strip</div>
+    <div class="pattern-pill blue">Spot switcher at top</div>
+    <div class="pattern-pill blue">Data freshness timestamp</div>
+    <div class="pattern-pill blue">Nearby spots with rating chips</div>
+  </div>
+
+  <h2>Surfing Anti-Patterns</h2>
+  <div class="pattern-grid">
+    <div class="pattern-pill red">Leading with raw numbers (4.2ft @ 14s)</div>
+    <div class="pattern-pill red">One-size-fits-all conditions (ignore persona)</div>
+    <div class="pattern-pill red">7-day forecasts (surfers don't trust)</div>
+    <div class="pattern-pill red">Generic weather app layout for surf</div>
+    <div class="pattern-pill red">No go/no-go verdict — just data</div>
+  </div>
+
+  <h2>Unique Angles Worth Stealing</h2>
+  <ul>
+    <li><strong>Sleeper's social layer on scores</strong> — community reactions injected directly into the score feed. If Conatus ever adds session sharing, this is the template.</li>
+    <li><strong>Night Sky's Conditions Card</strong> — one number, one sentence, one tap. Directly applicable to Conatus surf quality hero.</li>
+    <li><strong>Fixtured's "clear day" card</strong> — never shows a blank state. Conatus home should show "flat today, looking good Thursday" when there's nothing to surf.</li>
+    <li><strong>The Athletic's team strip + score hover</strong> — tapping a team chip shows a mini scorecard without navigating away. For Conatus: tapping a spot chip could show a mini conditions popover.</li>
+    <li><strong>NBA's spoiler toggle</strong> — "Hide Scores" for people who want to watch later. Conatus could offer "surf alert" toggle: only notify me when it's ★★★ or better.</li>
+  </ul>
+
+  <h2>Key Note on Lazyweb Coverage</h2>
+  <p>Lazyweb has strong coverage of mainstream sports apps (ESPN, NBA, MLS, Sleeper, The Athletic, Fotmob) but <strong>zero dedicated surf forecasting apps</strong> (Surfline, Magic Seaweed, Carrot Surf) at research time. Surf-specific UI patterns are inferred from adjacent outdoor apps + domain knowledge. When implementing Conatus home, consider uploading Surfline/MSW screenshots to Lazyweb for future research sessions.</p>
+
+  <footer>
+    <p>Generated by Claude Code · Lazyweb MCP · May 6, 2026 · Conatus iOS Project</p>
+    <p style="margin-top: 6px;">Consider adding <code>.lazyweb/</code> to .gitignore to keep reference images out of the repo.</p>
+  </footer>
+</div>
+</body>
+</html>

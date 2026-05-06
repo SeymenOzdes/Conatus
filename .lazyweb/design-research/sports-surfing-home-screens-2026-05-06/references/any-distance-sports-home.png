@@ -1,0 +1,1 @@
+{"statusCode":"400","error":"InvalidJWT","message":"Failed to base64url decode the signature"}

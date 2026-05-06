@@ -20,12 +20,12 @@ Open Conatus.xcodeproj and build with Cmd+B
 
 **CLI (Debug on iPhone 16 simulator):**
 ```bash
-xcodebuild -scheme Conatus -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16'
+xcodebuild -scheme Conatus -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
 **Run tests (when configured):**
 ```bash
-xcodebuild test -scheme Conatus -destination 'platform=iOS Simulator,name=iPhone 16'
+xcodebuild test -scheme Conatus -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
 ## Architecture & Patterns

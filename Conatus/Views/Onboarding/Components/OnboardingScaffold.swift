@@ -39,31 +39,30 @@ struct OnboardingScaffold<Content: View>: View {
     // MARK: - Top bar
 
     private var topBar: some View {
-        HStack {
-            backButton
-            Spacer()
-            OnboardingProgressDots(total: progress.total, current: progress.current)
-            Spacer()
-            Color.clear.frame(width: 36, height: 36)
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-    }
-
-    @ViewBuilder
-    private var backButton: some View {
-        if canGoBack, let onBack {
-            Button(action: onBack) {
-                Image(systemName: "chevron.backward")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 36, height: 36)
+        GeometryReader { proxy in
+            let barWidth = (proxy.size.width - 32) * 0.75
+            ZStack {
+                OnboardingProgressBar(total: progress.total, current: progress.current)
+                    .frame(width: barWidth)
+                if canGoBack, let onBack {
+                    HStack {
+                        Button(action: onBack) {
+                            Image(systemName: "chevron.backward")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 36, height: 36)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Back")
+                        Spacer()
+                    }
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Back")
-        } else {
-            Color.clear.frame(width: 36, height: 36)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 16)
+            .padding(.top, 20)
         }
+        .frame(height: 56)
     }
 
     // MARK: - Hero
