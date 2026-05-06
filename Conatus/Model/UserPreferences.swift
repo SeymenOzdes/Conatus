@@ -8,6 +8,7 @@
 import Foundation
 
 struct UserPreferences: Codable, Sendable {
+    var name: String?
     var persona: Persona?
     var pinnedSpotIDs: [UUID]
     var heightDisplay: HeightDisplay?
@@ -38,6 +39,7 @@ struct UserPreferences: Codable, Sendable {
     }
 
     static let `default` = UserPreferences(
+        name: nil,
         persona: nil,
         pinnedSpotIDs: [],
         heightDisplay: nil,

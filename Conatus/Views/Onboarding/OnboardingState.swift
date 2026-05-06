@@ -17,10 +17,11 @@ final class OnboardingState {
     typealias GrantState = UserPreferences.GrantState
     typealias PermissionStatuses = UserPreferences.PermissionStatuses
 
-    let totalSteps: Int = 8
+    let totalSteps: Int = 9
     var currentStep: Int = 0
     private(set) var isGoingBack: Bool = false
 
+    var name: String = ""
     var persona: Persona?
     var pinnedSpotIDs: Set<UUID> = []
     var heightDisplay: HeightDisplay?
@@ -38,11 +39,12 @@ final class OnboardingState {
 
     var canAdvance: Bool {
         switch currentStep {
-        case 0: return persona != nil
-        case 1: return !pinnedSpotIDs.isEmpty
-        case 2: return heightDisplay != nil
-        case 3: return units != nil
-        case 4, 5, 6, 7: return true
+        case 0: return !name.trimmingCharacters(in: .whitespaces).isEmpty
+        case 1: return persona != nil
+        case 2: return !pinnedSpotIDs.isEmpty
+        case 3: return heightDisplay != nil
+        case 4: return units != nil
+        case 5, 6, 7, 8: return true
         default: return false
         }
     }
@@ -83,6 +85,7 @@ final class OnboardingState {
 
     func complete() {
         var prefs = UserPreferences.default
+        prefs.name = name.trimmingCharacters(in: .whitespaces)
         prefs.persona = persona
         prefs.pinnedSpotIDs = Array(pinnedSpotIDs)
         prefs.heightDisplay = heightDisplay

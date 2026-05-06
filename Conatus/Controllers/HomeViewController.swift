@@ -5,6 +5,7 @@
 //  Created by Seymen Özdeş on 11.04.2026.
 //
 
+import SwiftUI
 import UIKit
 
 final class HomeViewController: UIViewController {
@@ -15,13 +16,14 @@ final class HomeViewController: UIViewController {
 
     override func loadView() {
         view = HomeView()
-        view.backgroundColor = UIColor.systemGray6
+        view.backgroundColor = .systemBackground
     }
 
     // MARK: - Lifecycle
 
     override func viewDidLoad() {
         super.viewDidLoad()
+
 #if DEBUG
         installDebugResetGesture()
 #endif

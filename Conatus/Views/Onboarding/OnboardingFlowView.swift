@@ -31,14 +31,15 @@ struct OnboardingFlowView: View {
     @ViewBuilder
     private var currentScreen: some View {
         switch state.currentStep {
-        case 0: PersonaScreen(state: state)
-        case 1: PinSpotsScreen(state: state)
-        case 2: HeightDisplayScreen(state: state)
-        case 3: UnitsScreen(state: state)
-        case 4: LocationPermissionScreen(state: state)
-        case 5: HealthPermissionScreen(state: state)
-        case 6: NotificationsPermissionScreen(state: state)
-        case 7: InstantWinScreen(state: state)
+        case 0: NameScreen(state: state)
+        case 1: PersonaScreen(state: state)
+        case 2: PinSpotsScreen(state: state)
+        case 3: HeightDisplayScreen(state: state)
+        case 4: UnitsScreen(state: state)
+        case 5: LocationPermissionScreen(state: state)
+        case 6: HealthPermissionScreen(state: state)
+        case 7: NotificationsPermissionScreen(state: state)
+        case 8: InstantWinScreen(state: state)
         default: EmptyView()
         }
     }
