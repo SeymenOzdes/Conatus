@@ -41,11 +41,10 @@ struct OnboardingScaffold<Content: View>: View {
     private var topBar: some View {
         GeometryReader { proxy in
             let barWidth = (proxy.size.width - 32) * 0.75
-            ZStack {
-                OnboardingProgressBar(total: progress.total, current: progress.current)
-                    .frame(width: barWidth)
-                if canGoBack, let onBack {
-                    HStack {
+            HStack(spacing: 0) {
+                ZStack {
+                    Color.clear.frame(width: 36, height: 36)
+                    if canGoBack, let onBack {
                         Button(action: onBack) {
                             Image(systemName: "chevron.backward")
                                 .font(.system(size: 18, weight: .semibold))
@@ -54,9 +53,13 @@ struct OnboardingScaffold<Content: View>: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Back")
-                        Spacer()
                     }
                 }
+                Spacer(minLength: 0)
+                OnboardingProgressBar(total: progress.total, current: progress.current)
+                    .frame(width: barWidth)
+                Spacer(minLength: 0)
+                Color.clear.frame(width: 36, height: 36)
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 16)
