@@ -14,6 +14,16 @@ final class HomeViewController: UIViewController {
 
     private var homeView: HomeView { view as! HomeView }
 
+    // MARK: - Content
+
+    private let viewModel = HomeViewModel()
+
+    private lazy var contentHost: UIHostingController<HomeContentView> = {
+        let host = UIHostingController(rootView: HomeContentView(viewModel: viewModel))
+        host.view.backgroundColor = .clear
+        return host
+    }()
+
     override func loadView() {
         view = HomeView()
         view.backgroundColor = .systemBackground
@@ -23,36 +33,27 @@ final class HomeViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
-#if DEBUG
-        installDebugResetGesture()
-#endif
+        installContent()
     }
 
-#if DEBUG
-
-    // MARK: - Debug
-
-    private func installDebugResetGesture() {
-        let recognizer = UILongPressGestureRecognizer(
-            target: self,
-            action: #selector(handleDebugLongPress(_:))
-        )
-        recognizer.minimumPressDuration = 1.5
-        recognizer.numberOfTouchesRequired = 2
-        view.addGestureRecognizer(recognizer)
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        viewModel.refresh()
     }
 
-    @objc private func handleDebugLongPress(_ recognizer: UILongPressGestureRecognizer) {
-        guard recognizer.state == .began else { return }
-        UserDefaults.standard.removeObject(forKey: UserPreferences.onboardingFlagKey)
-        let alert = UIAlertController(
-            title: "Onboarding reset",
-            message: "Relaunch the app to replay onboarding.",
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
+    // MARK: - Layout
+
+    private func installContent() {
+        addChild(contentHost)
+        let content = contentHost.view!
+        content.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(content)
+        NSLayoutConstraint.activate([
+            content.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            content.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            content.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            content.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+        contentHost.didMove(toParent: self)
     }
-#endif
 }

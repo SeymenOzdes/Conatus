@@ -13,8 +13,12 @@ final class RootViewController: UIViewController {
     // MARK: - Children
 
     private let detailPresenter = SpotDetailPresenter()
+    private let addSpotPresenter = AddSpotPresenter()
     private lazy var homeVC = HomeViewController()
-    private lazy var spotVC = SpotViewController(detailPresenter: detailPresenter)
+    private lazy var spotVC = SpotViewController(
+        detailPresenter: detailPresenter,
+        addSpotPresenter: addSpotPresenter
+    )
     private var currentChild: UIViewController?
 
     // MARK: - Tab Bar
@@ -43,6 +47,18 @@ final class RootViewController: UIViewController {
         return host
     }()
 
+    private lazy var addSheetHost: UIHostingController<AddSpotSheetContainer> = {
+        let root = AddSpotSheetContainer(
+            presenter: addSpotPresenter,
+            onSave: { [weak self] userSpot in self?.handleAddSpotSave(userSpot) },
+            onClose: { [weak self] in self?.addSpotPresenter.dismiss() }
+        )
+        let host = UIHostingController(rootView: root)
+        host.view.backgroundColor = .clear
+        host.sizingOptions = .intrinsicContentSize
+        return host
+    }()
+
     // MARK: - Lifecycle
 
     override func viewDidLoad() {
@@ -50,7 +66,16 @@ final class RootViewController: UIViewController {
         view.backgroundColor = .systemBackground
         installTabBar()
         installDetailSheet()
+        installAddSheet()
+        wireAddSpotPresenter()
         show(tab: .home)
+    }
+
+    private func wireAddSpotPresenter() {
+        // Opening the add sheet collapses any open detail sheet so they don't overlap.
+        addSpotPresenter.onPresent = { [weak self] in
+            self?.dismissDetail()
+        }
     }
 
     // MARK: - Tab Switching
@@ -60,6 +85,7 @@ final class RootViewController: UIViewController {
 
         if tab != .spots {
             dismissDetail()
+            addSpotPresenter.dismiss()
         }
 
         // Ensure the target is attached lazily when first needed.
@@ -123,6 +149,20 @@ final class RootViewController: UIViewController {
         detailHost.didMove(toParent: self)
     }
 
+    private func installAddSheet() {
+        addChild(addSheetHost)
+        let sheet = addSheetHost.view!
+        sheet.translatesAutoresizingMaskIntoConstraints = false
+        // Insert above the detail sheet — when both could conceptually appear, the add sheet wins.
+        view.addSubview(sheet)
+        NSLayoutConstraint.activate([
+            sheet.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            sheet.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            sheet.bottomAnchor.constraint(equalTo: tabBarHost.view.topAnchor, constant: -8),
+        ])
+        addSheetHost.didMove(toParent: self)
+    }
+
     // MARK: - Actions
 
     private func dismissDetail() {
@@ -132,6 +172,11 @@ final class RootViewController: UIViewController {
         }
         detailPresenter.select(nil)
         spotVC.deselectAllSpots()
+    }
+
+    private func handleAddSpotSave(_ userSpot: UserSpot) {
+        UserSpotsRepository.shared.add(userSpot)
+        addSpotPresenter.dismiss()
     }
 
     private func presentExpandedDetail() {

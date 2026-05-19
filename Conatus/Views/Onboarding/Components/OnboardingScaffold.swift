@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import Beam
+
 
 struct OnboardingScaffold<Content: View>: View {
     let icon: String

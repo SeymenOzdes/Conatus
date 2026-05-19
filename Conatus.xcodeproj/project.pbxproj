@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		2E663BE32FA9532000FF9293 /* Beam in Frameworks */ = {isa = PBXBuildFile; productRef = 2E663BE22FA9532000FF9293 /* Beam */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
 		2ED5FCDE2F8A94930070AF62 /* Conatus.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Conatus.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -40,7 +36,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2E663BE32FA9532000FF9293 /* Beam in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -83,7 +78,6 @@
 			);
 			name = Conatus;
 			packageProductDependencies = (
-				2E663BE22FA9532000FF9293 /* Beam */,
 			);
 			productName = Conatus;
 			productReference = 2ED5FCDE2F8A94930070AF62 /* Conatus.app */;
@@ -97,7 +91,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2640;
-				LastUpgradeCheck = 2640;
+				LastUpgradeCheck = 2650;
 				TargetAttributes = {
 					2ED5FCDD2F8A94930070AF62 = {
 						CreatedOnToolsVersion = 26.4;
@@ -114,7 +108,6 @@
 			mainGroup = 2ED5FCD52F8A94930070AF62;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				2E663BE12FA9532000FF9293 /* XCRemoteSwiftPackageReference "beam" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2ED5FCDF2F8A94930070AF62 /* Products */;
@@ -280,6 +273,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -337,6 +331,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -364,25 +359,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		2E663BE12FA9532000FF9293 /* XCRemoteSwiftPackageReference "beam" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/tornikegomareli/beam";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.1.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		2E663BE22FA9532000FF9293 /* Beam */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 2E663BE12FA9532000FF9293 /* XCRemoteSwiftPackageReference "beam" */;
-			productName = Beam;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 2ED5FCD62F8A94930070AF62 /* Project object */;
 }

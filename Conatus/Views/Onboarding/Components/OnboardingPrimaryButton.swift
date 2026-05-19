@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Beam
 
 struct OnboardingPrimaryButton: View {
     let title: String

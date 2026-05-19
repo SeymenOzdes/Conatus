@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh repo *)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:services.surfline.com)",
+      "Bash(python *)",
+      "Bash(.venv/bin/python -c \"import fetch_surf_spots; print\\('import ok'\\)\")",
+      "Bash(python3 *)"
+    ]
+  }
+}

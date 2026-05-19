@@ -30,7 +30,22 @@
       "mcp__plugin_lazyweb_lazyweb__lazyweb_health",
       "mcp__plugin_lazyweb_lazyweb__lazyweb_search",
       "mcp__plugin_lazyweb_lazyweb__lazyweb_find_similar",
-      "Bash(xcodebuild -scheme Conatus -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro')"
+      "Bash(xcodebuild -scheme Conatus -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro')",
+      "Bash(xargs cat)",
+      "Bash(lsof -nP -iTCP:8000 -sTCP:LISTEN)",
+      "Bash(uv sync *)",
+      "Bash(pg_isready -h localhost -p 5432)",
+      "Bash(uv run *)",
+      "Bash(psql \"postgresql://postgres:postgres@localhost:5432/surfapp\" -c \"SELECT count\\(*\\) AS surf_spots_v2_count, count\\(DISTINCT region\\) AS distinct_regions FROM surf_spots_v2;\")",
+      "Bash(psql \"postgresql://postgres:postgres@localhost:5432/surfapp\" -c \"SELECT count\\(*\\) AS old_spots_count FROM spots;\")",
+      "Bash(curl -s 'http://127.0.0.1:8000/v1/spots/search?q=Pipeline&limit=3')",
+      "Bash(curl -s 'http://127.0.0.1:8000/v1/spots/search?lat=21.66&lng=-158.05&radius=5000&limit=3')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/healthz)",
+      "Bash(curl -s -w \"\\\\nHTTP %{http_code}\\\\n\" http://localhost:8000/healthz)",
+      "Bash(curl -s 'http://localhost:8000/healthz')",
+      "Bash(curl -s 'http://localhost:8000/v1/spots/search?q=Mavericks&limit=3')",
+      "Bash(unset VIRTUAL_ENV)",
+      "Bash(python3 -c ' *)"
     ]
   }
 }

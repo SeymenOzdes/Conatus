@@ -11,14 +11,42 @@ import SwiftUI
 final class SpotDetailPresenter {
     var selectedSpot: Spot?
     let summarizer = WeatherSummarizeGenerator()
+    private let conditionsService = SpotConditionsService()
+    private var conditionsTask: Task<Void, Never>?
 
     func select(_ spot: Spot?) {
         selectedSpot = spot
         guard let spot else {
+            conditionsTask?.cancel()
+            conditionsTask = nil
+            summarizer.cancel()
+            return
+        }
+        guard !spot.isPlaceholder else {
             summarizer.cancel()
             return
         }
         Task { await summarizer.generate(for: spot) }
+    }
+
+    func select(_ result: SpotResult) {
+        conditionsTask?.cancel()
+        select(Spot.placeholder(from: result))
+
+        conditionsTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let dto = try await self.conditionsService.fetchConditions(spotId: result.spotId)
+                if Task.isCancelled { return }
+                if let spot = dto.makeSpot(from: result) {
+                    self.select(spot)
+                }
+            } catch is CancellationError {
+                // ignored — superseded by a newer selection
+            } catch {
+                // network / inland fallback: leave placeholder in place
+            }
+        }
     }
 }
 

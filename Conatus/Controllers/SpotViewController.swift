@@ -9,11 +9,6 @@ import SwiftUI
 import UIKit
 import MapKit
 
-@Observable
-final class SpotSearchState {
-    var query: String = ""
-}
-
 final class SpotViewController: UIViewController {
 
     // MARK: - View
@@ -22,38 +17,32 @@ final class SpotViewController: UIViewController {
 
     // MARK: - Search
 
-    private let searchState = SpotSearchState()
+    private let searchVM = SpotSearchViewModel()
 
     private struct SearchOverlayView: View {
-        @Bindable var state: SpotSearchState
-        let spots: [Spot]
-        var onSelect: (Spot) -> Void
-
-        private var filtered: [Spot] {
-            guard !state.query.isEmpty else { return [] }
-            return Array(
-                spots
-                    .filter { $0.name.localizedCaseInsensitiveContains(state.query) }
-                    .prefix(5)
-            )
-        }
+        @Bindable var vm: SpotSearchViewModel
+        var onSelectResult: (SpotResult) -> Void
 
         var body: some View {
             VStack(spacing: 8) {
-                SearchBarView(text: $state.query, placeholder: "Search Spots")
-                if !filtered.isEmpty {
-                    SearchSuggestionsView(spots: filtered, onSelect: onSelect)
-                        .transition(.scale(scale: 0.9, anchor: .top).combined(with: .opacity))
+                SearchBarView(text: $vm.query, placeholder: "Search Spots")
+                SearchSuggestionsView(phase: vm.phase, query: vm.query) { id in
+                    guard let result = vm.result(forID: id) else { return }
+                    onSelectResult(result)
                 }
+                .transition(.scale(scale: 0.9, anchor: .top).combined(with: .opacity))
             }
-            .animation(.spring(duration: 0.38, bounce: 0.2), value: filtered.map(\.id))
+            .animation(.spring(duration: 0.38, bounce: 0.2), value: vm.phase)
+            .onChange(of: vm.query) { _, _ in
+                vm.onQueryChanged()
+            }
         }
     }
 
     private lazy var searchOverlayHost: UIHostingController<SearchOverlayView> = {
         let host = UIHostingController(
-            rootView: SearchOverlayView(state: searchState, spots: Spot.samples) { [weak self] spot in
-                self?.selectFromSearch(spot)
+            rootView: SearchOverlayView(vm: searchVM) { [weak self] result in
+                self?.selectFromSearchResult(result)
             }
         )
         host.view.backgroundColor = .clear
@@ -73,10 +62,44 @@ final class SpotViewController: UIViewController {
 
     private let detailPresenter: SpotDetailPresenter
 
+    // MARK: - Add Spot
+
+    private let addSpotPresenter: AddSpotPresenter
+
+    private lazy var addButtonHost: UIHostingController<AddSpotButton> = {
+        let host = UIHostingController(
+            rootView: AddSpotButton { [weak self] in
+                self?.addSpotPresenter.present()
+            }
+        )
+        host.view.backgroundColor = .clear
+        host.sizingOptions = .intrinsicContentSize
+        return host
+    }()
+
+    /// Vertical offset of the add button's bottom edge from the spot view's bottom safe area.
+    /// Matches the tab bar geometry owned by RootViewController:
+    /// tab bar height (55) + bottom inset from safe area (8) + 12pt visual gap.
+    private static let addButtonBottomOffset: CGFloat = -(55 + 8 + 12)
+
+    private lazy var centerDotHost: UIHostingController<MapCenterDotView> = {
+        let host = UIHostingController(rootView: MapCenterDotView(presenter: addSpotPresenter))
+        host.view.backgroundColor = .clear
+        host.view.isUserInteractionEnabled = false
+        host.sizingOptions = .intrinsicContentSize
+        return host
+    }()
+
+    /// Vertical distance from the top safe area to the dot's center while the
+    /// Add Spot sheet covers the lower portion of the map. Approximates the
+    /// midpoint of the visible map region above the sheet.
+    private static let centerDotTopOffset: CGFloat = 180
+
     // MARK: - Init
 
-    init(detailPresenter: SpotDetailPresenter) {
+    init(detailPresenter: SpotDetailPresenter, addSpotPresenter: AddSpotPresenter) {
         self.detailPresenter = detailPresenter
+        self.addSpotPresenter = addSpotPresenter
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -94,6 +117,10 @@ final class SpotViewController: UIViewController {
         super.viewDidLoad()
         installMap()
         installSearchBar()
+        installAddButton()
+        installCenterDot()
+        installUserSpotsOnMap()
+        observeUserSpots()
     }
 
     // MARK: - Layout
@@ -127,18 +154,79 @@ final class SpotViewController: UIViewController {
         searchOverlayHost.didMove(toParent: self)
     }
 
+    private func installAddButton() {
+        addChild(addButtonHost)
+        let button = addButtonHost.view!
+        button.translatesAutoresizingMaskIntoConstraints = false
+        spotView.addSubview(button)
+        NSLayoutConstraint.activate([
+            button.trailingAnchor.constraint(equalTo: spotView.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+            button.bottomAnchor.constraint(equalTo: spotView.safeAreaLayoutGuide.bottomAnchor, constant: Self.addButtonBottomOffset),
+        ])
+        addButtonHost.didMove(toParent: self)
+    }
+
+    private func installCenterDot() {
+        addChild(centerDotHost)
+        let dot = centerDotHost.view!
+        dot.translatesAutoresizingMaskIntoConstraints = false
+        // Insert below the add button and search overlay so it can never block them,
+        // but above the map so it stays visible while panning.
+        spotView.insertSubview(dot, belowSubview: addButtonHost.view)
+        NSLayoutConstraint.activate([
+            dot.centerXAnchor.constraint(equalTo: spotView.centerXAnchor),
+            dot.centerYAnchor.constraint(equalTo: spotView.safeAreaLayoutGuide.topAnchor, constant: Self.centerDotTopOffset),
+        ])
+        centerDotHost.didMove(toParent: self)
+    }
+
+    // MARK: - User spots
+
+    private func installUserSpotsOnMap() {
+        let spots = UserSpotsRepository.shared.spots.map(Spot.placeholder(from:))
+        let annotations = spots.map(SpotAnnotation.init(spot:))
+        mapView.addAnnotations(annotations)
+    }
+
+    private func observeUserSpots() {
+        UserSpotsRepository.shared.onChange = { [weak self] spots in
+            self?.syncUserSpotAnnotations(spots)
+        }
+    }
+
+    private func syncUserSpotAnnotations(_ userSpots: [UserSpot]) {
+        let knownIDs = Set(
+            mapView.annotations
+                .compactMap { ($0 as? SpotAnnotation)?.spot.id }
+        )
+        let newSpots = userSpots
+            .filter { !knownIDs.contains($0.id) }
+            .map(Spot.placeholder(from:))
+        guard !newSpots.isEmpty else { return }
+        mapView.addAnnotations(newSpots.map(SpotAnnotation.init(spot:)))
+
+        // Pan to the newest spot so the user sees the result of the action.
+        if let last = newSpots.last {
+            mapView.setCenter(last.coordinate, animated: true)
+        }
+    }
+
     // MARK: - Actions
 
-    // `Spot.samples` regenerates UUIDs on every access, so match by name (unique across samples).
-    private func selectFromSearch(_ spot: Spot) {
-        let target = mapView.annotations
-            .compactMap { $0 as? SpotAnnotation }
-            .first { $0.spot.name == spot.name }
-        guard let annotation = target else { return }
-        searchState.query = spot.name
+    private func selectFromSearchResult(_ result: SpotResult) {
+        searchVM.query = result.name
         view.endEditing(true)
-        mapView.setCenter(annotation.coordinate, animated: true)
-        mapView.selectAnnotation(annotation, animated: true)
+
+        let coordinate = CLLocationCoordinate2D(latitude: result.lat, longitude: result.lng)
+        mapView.setCenter(coordinate, animated: true)
+
+        if let annotation = mapView.annotations
+            .compactMap({ $0 as? SpotAnnotation })
+            .first(where: { $0.spot.name == result.name }) {
+            mapView.selectAnnotation(annotation, animated: true)
+        } else {
+            detailPresenter.select(result)
+        }
     }
 
     func deselectAllSpots() {

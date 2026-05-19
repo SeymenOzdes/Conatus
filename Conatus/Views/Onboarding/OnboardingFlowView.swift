@@ -40,6 +40,7 @@ struct OnboardingFlowView: View {
         case 6: HealthPermissionScreen(state: state)
         case 7: NotificationsPermissionScreen(state: state)
         case 8: InstantWinScreen(state: state)
+        case 9: FreeTrialScreen(state: state)
         default: EmptyView()
         }
     }

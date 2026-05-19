@@ -17,7 +17,7 @@ final class OnboardingState {
     typealias GrantState = UserPreferences.GrantState
     typealias PermissionStatuses = UserPreferences.PermissionStatuses
 
-    let totalSteps: Int = 9
+    let totalSteps: Int = 10
     var currentStep: Int = 0
     private(set) var isGoingBack: Bool = false
 
@@ -44,13 +44,13 @@ final class OnboardingState {
         case 2: return !pinnedSpotIDs.isEmpty
         case 3: return heightDisplay != nil
         case 4: return units != nil
-        case 5, 6, 7, 8: return true
+        case 5, 6, 7, 8, 9: return true
         default: return false
         }
     }
 
     var canGoBack: Bool {
-        currentStep > 0 && currentStep < totalSteps - 1
+        currentStep > 0
     }
 
     func next() {

@@ -15,7 +15,7 @@ public struct SearchBarView: View {
         self._text = text
         self.placeholder = placeholder
     }
-
+	
     public var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
