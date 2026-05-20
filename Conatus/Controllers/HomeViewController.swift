@@ -17,9 +17,28 @@ final class HomeViewController: UIViewController {
     // MARK: - Content
 
     private let viewModel = HomeViewModel()
+    private let startSessionPresenter: StartSessionPresenter
+    private let toastController: HomeToastController
+
+    init(startSessionPresenter: StartSessionPresenter, toastController: HomeToastController) {
+        self.startSessionPresenter = startSessionPresenter
+        self.toastController = toastController
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     private lazy var contentHost: UIHostingController<HomeContentView> = {
-        let host = UIHostingController(rootView: HomeContentView(viewModel: viewModel))
+        let host = UIHostingController(
+            rootView: HomeContentView(
+                viewModel: viewModel,
+                startSessionPresenter: startSessionPresenter,
+                toastController: toastController
+            )
+        )
         host.view.backgroundColor = .clear
         return host
     }()

@@ -14,7 +14,12 @@ final class RootViewController: UIViewController {
 
     private let detailPresenter = SpotDetailPresenter()
     private let addSpotPresenter = AddSpotPresenter()
-    private lazy var homeVC = HomeViewController()
+    private let startSessionPresenter = StartSessionPresenter()
+    private let homeToastController = HomeToastController()
+    private lazy var homeVC = HomeViewController(
+        startSessionPresenter: startSessionPresenter,
+        toastController: homeToastController
+    )
     private lazy var spotVC = SpotViewController(
         detailPresenter: detailPresenter,
         addSpotPresenter: addSpotPresenter
@@ -59,6 +64,29 @@ final class RootViewController: UIViewController {
         return host
     }()
 
+    private lazy var startSessionBackdropHost: UIHostingController<StartSessionBackdrop> = {
+        let root = StartSessionBackdrop(
+            presenter: startSessionPresenter,
+            onTap: { [weak self] in self?.startSessionPresenter.dismiss() }
+        )
+        let host = UIHostingController(rootView: root)
+        host.view.backgroundColor = .clear
+        return host
+    }()
+
+    private lazy var startSessionSheetHost: UIHostingController<StartSessionSheetContainer> = {
+        let root = StartSessionSheetContainer(
+            presenter: startSessionPresenter,
+            pinnedSpots: { Self.resolvePinnedSpots() },
+            onSave: { [weak self] session in self?.handleStartSessionSave(session) },
+            onClose: { [weak self] in self?.startSessionPresenter.dismiss() }
+        )
+        let host = UIHostingController(rootView: root)
+        host.view.backgroundColor = .clear
+        host.sizingOptions = .intrinsicContentSize
+        return host
+    }()
+
     // MARK: - Lifecycle
 
     override func viewDidLoad() {
@@ -67,15 +95,52 @@ final class RootViewController: UIViewController {
         installTabBar()
         installDetailSheet()
         installAddSheet()
+        installStartSessionBackdrop()
+        installStartSessionSheet()
         wireAddSpotPresenter()
+        wireStartSessionPresenter()
         show(tab: .home)
     }
 
     private func wireAddSpotPresenter() {
-        // Opening the add sheet collapses any open detail sheet so they don't overlap.
+        // Opening the add sheet collapses any open detail or session sheet so they don't overlap.
         addSpotPresenter.onPresent = { [weak self] in
             self?.dismissDetail()
+            self?.startSessionPresenter.dismiss()
         }
+    }
+
+    private func wireStartSessionPresenter() {
+        // Opening the session sheet collapses the detail and add sheets, enables
+        // the backdrop host so it can catch tap-to-dismiss, and hides the tab bar
+        // so the sheet visually replaces it from the bottom of the screen.
+        startSessionPresenter.onPresent = { [weak self] in
+            guard let self else { return }
+            self.dismissDetail()
+            self.addSpotPresenter.dismiss()
+            self.startSessionBackdropHost.view.isUserInteractionEnabled = true
+            self.setTabBarHidden(true, animated: true)
+        }
+        startSessionPresenter.onDismiss = { [weak self] in
+            guard let self else { return }
+            self.startSessionBackdropHost.view.isUserInteractionEnabled = false
+            self.setTabBarHidden(false, animated: true)
+        }
+    }
+
+    private func setTabBarHidden(_ hidden: Bool, animated: Bool) {
+        let bar = tabBarHost.view!
+        let targetAlpha: CGFloat = hidden ? 0 : 1
+        guard bar.alpha != targetAlpha else { return }
+        let apply = {
+            bar.alpha = targetAlpha
+        }
+        if animated {
+            UIView.animate(withDuration: 0.22, delay: 0, options: [.curveEaseInOut], animations: apply)
+        } else {
+            apply()
+        }
+        bar.isUserInteractionEnabled = !hidden
     }
 
     // MARK: - Tab Switching
@@ -86,6 +151,9 @@ final class RootViewController: UIViewController {
         if tab != .spots {
             dismissDetail()
             addSpotPresenter.dismiss()
+        }
+        if tab != .home {
+            startSessionPresenter.dismiss()
         }
 
         // Ensure the target is attached lazily when first needed.
@@ -163,6 +231,43 @@ final class RootViewController: UIViewController {
         addSheetHost.didMove(toParent: self)
     }
 
+    private func installStartSessionBackdrop() {
+        addChild(startSessionBackdropHost)
+        let backdrop = startSessionBackdropHost.view!
+        backdrop.translatesAutoresizingMaskIntoConstraints = false
+        // Sits above tab bar and tab content but below the session sheet,
+        // so it dims the entire screen behind the sheet.
+        view.addSubview(backdrop)
+        NSLayoutConstraint.activate([
+            backdrop.topAnchor.constraint(equalTo: view.topAnchor),
+            backdrop.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            backdrop.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            backdrop.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+        // The host's full-screen UIView would otherwise swallow every tap
+        // (the inner SwiftUI `.allowsHitTesting(false)` doesn't reach UIKit's
+        // hitTest). Toggled on by `onPresent`, off by `onDismiss`.
+        backdrop.isUserInteractionEnabled = false
+        startSessionBackdropHost.didMove(toParent: self)
+    }
+
+    private func installStartSessionSheet() {
+        addChild(startSessionSheetHost)
+        let sheet = startSessionSheetHost.view!
+        sheet.translatesAutoresizingMaskIntoConstraints = false
+        // Sits above the add sheet in z-order — only one is ever visible at a time
+        // due to the mutual-exclusion wiring on the presenters. Anchored to the
+        // bottom safe-area edge so the sheet rises from the screen bottom; the
+        // tab bar is hidden while the sheet is presented (see wireStartSessionPresenter).
+        view.addSubview(sheet)
+        NSLayoutConstraint.activate([
+            sheet.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            sheet.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            sheet.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+        startSessionSheetHost.didMove(toParent: self)
+    }
+
     // MARK: - Actions
 
     private func dismissDetail() {
@@ -177,6 +282,19 @@ final class RootViewController: UIViewController {
     private func handleAddSpotSave(_ userSpot: UserSpot) {
         UserSpotsRepository.shared.add(userSpot)
         addSpotPresenter.dismiss()
+    }
+
+    private func handleStartSessionSave(_ session: UserSession) {
+        UserSessionsRepository.shared.add(session)
+        startSessionPresenter.dismiss()
+        homeToastController.show("Session saved")
+    }
+
+    private static func resolvePinnedSpots() -> [Spot] {
+        let prefs = UserPreferences.current
+        return prefs.pinnedSpotIDs.compactMap { id in
+            Spot.samples.first(where: { $0.id == id })
+        }
     }
 
     private func presentExpandedDetail() {

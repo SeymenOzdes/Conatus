@@ -44,13 +44,17 @@ final class HomeViewModel {
 
 struct HomeContentView: View {
     @Bindable var viewModel: HomeViewModel
+    @Bindable var startSessionPresenter: StartSessionPresenter
+    @Bindable var toastController: HomeToastController
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 GreetingHeaderView(name: viewModel.greetingName)
                 SessionStatsDialView()
-                StartSessionCard()
+                StartSessionCard {
+                    startSessionPresenter.present()
+                }
 
                 if !viewModel.pinnedSpots.isEmpty {
                     PinnedSectionView(
@@ -66,5 +70,14 @@ struct HomeContentView: View {
         .safeAreaInset(edge: .bottom) {
             Color.clear.frame(height: 96)
         }
+        .overlay(alignment: .top) {
+            if toastController.visible {
+                SessionSavedToast(message: toastController.message)
+                    .padding(.top, 12)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(1)
+            }
+        }
+        .animation(.spring(duration: 0.3, bounce: 0.2), value: toastController.visible)
     }
 }
