@@ -10,24 +10,68 @@ struct StartSessionSummaryStep: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
-                if let picked = presenter.pickedSpot {
-                    row(icon: "mappin.circle.fill", label: "Spot", value: picked.name)
-                }
-                row(icon: "clock", label: "Duration", value: durationLabel)
-                row(icon: "water.waves", label: "Waves", value: "\(presenter.waveCount)")
-                row(icon: "surfboard.fill", label: "Board", value: presenter.boardType.displayName, fallbackIcon: "figure.surfing")
-                row(icon: "arrow.up.and.down", label: "Wave size", value: presenter.waveSize.displayName)
-                row(icon: "person.3.fill", label: "Crowd", value: presenter.crowdLevel.displayName)
-                row(icon: "star.fill", label: "Vibe", value: String(repeating: "★", count: presenter.rating) + String(repeating: "☆", count: 5 - presenter.rating))
-                if !presenter.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    notesRow
-                }
-            }
-            .padding(.vertical, 2)
+            card
+                .padding(.vertical, 2)
         }
         .frame(maxHeight: 420)
         .scrollIndicators(.hidden)
+    }
+
+    // MARK: - Card
+
+    private var card: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            header
+            Rectangle()
+                .fill(Color.white.opacity(0.18))
+                .frame(height: 0.5)
+            statsRow
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Color.white.opacity(0.10))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.5)
+        )
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "mappin.circle.fill")
+                .font(.system(size: 28, weight: .semibold))
+                .foregroundStyle(.white)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(presenter.pickedSpot?.name ?? "Session")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                Text(subtitle)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.65))
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var statsRow: some View {
+        HStack(alignment: .top, spacing: 0) {
+            stat(icon: "water.waves", value: "\(presenter.waveCount)", label: "Waves")
+            statDivider
+            stat(icon: presenter.waveSize.iconName, value: presenter.waveSize.displayName, label: "Wave size")
+            statDivider
+            stat(icon: "star.fill", value: "\(presenter.rating)/5", label: "Vibe")
+        }
+    }
+
+    // MARK: - Helpers
+
+    private var subtitle: String {
+        "\(presenter.boardType.displayName) · \(durationLabel)"
     }
 
     private var durationLabel: String {
@@ -40,66 +84,26 @@ struct StartSessionSummaryStep: View {
         return "\(m)m"
     }
 
-    private func row(icon: String, label: String, value: String, fallbackIcon: String? = nil) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: resolvedIcon(icon, fallback: fallbackIcon))
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color.white.opacity(0.65))
-                .frame(width: 22)
-            Text(label)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(Color.white.opacity(0.65))
-            Spacer(minLength: 8)
+    private var statDivider: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.14))
+            .frame(width: 0.5, height: 40)
+    }
+
+    private func stat(icon: String, value: String, label: String) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.85))
             Text(value)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.6))
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.white.opacity(0.10))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.5)
-        )
-    }
-
-    private var notesRow: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 12) {
-                Image(systemName: "text.alignleft")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.65))
-                    .frame(width: 22)
-                Text("Notes")
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundStyle(Color.white.opacity(0.65))
-                Spacer(minLength: 0)
-            }
-            Text(presenter.notes)
-                .font(.system(size: 14))
-                .foregroundStyle(.white)
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.white.opacity(0.10))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.5)
-        )
-    }
-
-    private func resolvedIcon(_ name: String, fallback: String?) -> String {
-        // surfboard.fill isn't in older SF Symbols sets; let fallback resolve at runtime.
-        if name == "surfboard.fill" { return fallback ?? "figure.surfing" }
-        return name
+        .frame(maxWidth: .infinity)
     }
 }

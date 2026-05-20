@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Read(//Users/seymenozdes/Projects/Swift/Conatus/**)",
-      "Bash(xcodebuild -scheme Conatus -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build)"
+      "Bash(xcodebuild -scheme Conatus -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build)",
+      "mcp__figma__get_screenshot",
+      "Read(//private/tmp/**)",
+      "Bash(curl -s -o conatus_figma.png \"https://www.figma.com/api/mcp/asset/a9b873ab-c3ce-49aa-9389-7dbf0cf7f231\")"
     ]
   }
 }

@@ -46,42 +46,44 @@ struct StartSessionSheetView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(spacing: 12) {
-            if presenter.step != .location {
-                Button {
-                    presenter.goBack()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 28, height: 28)
-                        .background(Circle().fill(Color.white.opacity(0.18)))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Back")
-                .transition(.scale.combined(with: .opacity))
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
+        ZStack {
+            VStack(spacing: 8) {
                 Text(title(for: presenter.step))
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
                 StepIndicator(step: presenter.step)
             }
+            .frame(maxWidth: .infinity)
 
-            Spacer(minLength: 0)
+            HStack {
+                if presenter.step != .location {
+                    Button {
+                        presenter.goBack()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Back")
+                    .transition(.opacity)
+                }
 
-            Button {
-                onClose()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 28, height: 28)
-                    .background(Circle().fill(Color.white.opacity(0.18)))
+                Spacer(minLength: 0)
+
+                Button {
+                    onClose()
+                } label: {
+                    Text("Close")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Close")
         }
     }
 
