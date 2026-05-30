@@ -30,6 +30,11 @@ struct SpotDetailView: View {
                 SpotWaveHeroCard(spot: spot)
                 SpotDetailSecondaryStatsGrid(spot: spot)
                 SpotDetailRecommendationSection(spot: spot, phase: summarizer.phase)
+                    .overlay {
+                        if isRecommendationLoading {
+                            aiRecommendationLoadingOverlay
+                        }
+                    }
             }
             .padding(.horizontal, 16)
             .padding(.top, 12)
@@ -59,6 +64,24 @@ struct SpotDetailView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Close")
         }
+    }
+
+    private var isRecommendationLoading: Bool {
+        summarizer.phase == .loading
+    }
+
+    private var aiRecommendationLoadingOverlay: some View {
+        VStack(spacing: 10) {
+            ProgressView()
+                .controlSize(.large)
+                .tint(spot.tint)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .shadow(color: .black.opacity(0.08), radius: 18, y: 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("AI recommendation is loading")
     }
 }
 
