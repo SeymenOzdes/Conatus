@@ -131,6 +131,31 @@ extension Spot {
         currentWave?.heightMeters ?? 0
     }
 
+    var detailFocalWaveHeight: Double {
+        peakWave?.heightMeters ?? currentWaveHeight
+    }
+
+    var detailAveragePeriodSeconds: Double {
+        guard !hourlyWaves.isEmpty else { return 0 }
+        let total = hourlyWaves.map(\.periodSeconds).reduce(0, +)
+        return total / Double(hourlyWaves.count)
+    }
+
+    var detailDropAfterPeakMeters: Double {
+        guard let peak = peakWave,
+              let peakIndex = hourlyWaves.firstIndex(where: { $0.id == peak.id }) else {
+            return 0
+        }
+        let afterPeak = hourlyWaves.dropFirst(peakIndex + 1)
+        guard let lowest = afterPeak.map(\.heightMeters).min() else { return 0 }
+        return max(0, peak.heightMeters - lowest)
+    }
+
+    var detailChartYDomainMax: Double {
+        let peak = peakWave?.heightMeters ?? 0
+        return max(1.0, peak * 1.25)
+    }
+
     enum SurfStatus {
         case firing, good, fair
 
@@ -175,6 +200,26 @@ extension Spot {
             suffix = "ft"
         }
         return loVal == hiVal ? "\(loVal)\(suffix)" : "\(loVal)\u{2013}\(hiVal)\(suffix)"
+    }
+
+    func detailRelativePeakLabel(for peak: WaveSample) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        let interval = peak.hour.timeIntervalSinceNow
+        if interval <= 60 { return "Peaking now" }
+        return "Peak " + formatter.localizedString(fromTimeInterval: interval)
+    }
+
+    func detailPeakTimeLabel(for peak: WaveSample) -> String {
+        let time = peak.hour.formatted(.dateTime.hour().minute())
+        let qualifier = Calendar.current.isDateInToday(peak.hour) ? "Today" : "Tomorrow"
+        return "\(time) · \(qualifier)"
+    }
+
+    func detailPeakAnnotationLabel(for peak: WaveSample) -> String {
+        let time = peak.hour.formatted(.dateTime.hour().minute())
+        let qualifier = Calendar.current.isDateInToday(peak.hour) ? "Today" : "Tomorrow"
+        return "\(String(format: "%.1f", peak.heightMeters)) m  ·  \(time) \(qualifier)"
     }
 }
 

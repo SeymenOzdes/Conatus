@@ -19,10 +19,16 @@ final class HomeViewController: UIViewController {
     private let viewModel = HomeViewModel()
     private let startSessionPresenter: StartSessionPresenter
     private let toastController: HomeToastController
+    private let detailPresenter: SpotDetailPresenter
 
-    init(startSessionPresenter: StartSessionPresenter, toastController: HomeToastController) {
+    init(
+        startSessionPresenter: StartSessionPresenter,
+        toastController: HomeToastController,
+        detailPresenter: SpotDetailPresenter
+    ) {
         self.startSessionPresenter = startSessionPresenter
         self.toastController = toastController
+        self.detailPresenter = detailPresenter
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -36,7 +42,10 @@ final class HomeViewController: UIViewController {
             rootView: HomeContentView(
                 viewModel: viewModel,
                 startSessionPresenter: startSessionPresenter,
-                toastController: toastController
+                toastController: toastController,
+                onSpotSelected: { [weak self] spot in
+                    self?.detailPresenter.select(spot)
+                }
             )
         )
         host.view.backgroundColor = .clear

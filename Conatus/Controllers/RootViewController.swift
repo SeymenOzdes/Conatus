@@ -18,7 +18,8 @@ final class RootViewController: UIViewController {
     private let homeToastController = HomeToastController()
     private lazy var homeVC = HomeViewController(
         startSessionPresenter: startSessionPresenter,
-        toastController: homeToastController
+        toastController: homeToastController,
+        detailPresenter: detailPresenter
     )
     private lazy var spotVC = SpotViewController(
         detailPresenter: detailPresenter,

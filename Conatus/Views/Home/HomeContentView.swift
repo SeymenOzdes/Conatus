@@ -11,18 +11,18 @@ import SwiftUI
 @MainActor
 final class HomeViewModel {
     private(set) var greetingName: String?
-    private(set) var pinnedSpots: [Spot]
+    private(set) var favoriteSpots: [Spot]
     private(set) var units: UserPreferences.Units
 
     init() {
         self.greetingName = Self.resolveGreetingName()
-        self.pinnedSpots = Self.resolvePinnedSpots()
+        self.favoriteSpots = Self.resolveFavoriteSpots()
         self.units = UserPreferences.current.units ?? .imperial
     }
 
     func refresh() {
         greetingName = Self.resolveGreetingName()
-        pinnedSpots = Self.resolvePinnedSpots()
+        favoriteSpots = Self.resolveFavoriteSpots()
         units = UserPreferences.current.units ?? .imperial
     }
 
@@ -32,11 +32,12 @@ final class HomeViewModel {
         return trimmed.isEmpty ? nil : trimmed
     }
 
-    private static func resolvePinnedSpots() -> [Spot] {
+    private static func resolveFavoriteSpots() -> [Spot] {
         let prefs = UserPreferences.current
-        return prefs.pinnedSpotIDs.compactMap { id in
+        let pinned = prefs.pinnedSpotIDs.compactMap { id in
             Spot.samples.first(where: { $0.id == id })
         }
+        return pinned.isEmpty ? Array(Spot.samples.prefix(3)) : pinned
     }
 }
 
@@ -46,6 +47,7 @@ struct HomeContentView: View {
     @Bindable var viewModel: HomeViewModel
     @Bindable var startSessionPresenter: StartSessionPresenter
     @Bindable var toastController: HomeToastController
+    var onSpotSelected: (Spot) -> Void = { _ in }
 
     var body: some View {
         ScrollView {
@@ -56,12 +58,11 @@ struct HomeContentView: View {
                     startSessionPresenter.present()
                 }
 
-                if !viewModel.pinnedSpots.isEmpty {
-                    PinnedSectionView(
-                        spots: viewModel.pinnedSpots,
-                        units: viewModel.units
-                    )
-                }
+                FavoriteSpotCardsSection(
+                    spots: viewModel.favoriteSpots,
+                    units: viewModel.units,
+                    onSelect: onSpotSelected
+                )
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
