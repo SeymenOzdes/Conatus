@@ -22,12 +22,31 @@ final class WeatherSummarizeGenerator {
     private(set) var phase: Phase = .idle
 
     private var task: Task<Void, Never>?
+    private var currentSpotID: UUID?
+    private var lastRecommendation: SurfRecommendation?
+    private var refreshVariant = 0
 
-    func generate(for spot: Spot) async {
+    func generate(for spot: Spot, forceRefresh: Bool = false) async {
         task?.cancel()
+        guard !spot.hourlyWaves.isEmpty || !spot.forecastSlots.isEmpty else {
+            phase = .unavailable(Self.unavailableRecommendation(for: spot))
+            task = nil
+            return
+        }
+
+        if currentSpotID != spot.id {
+            currentSpotID = spot.id
+            lastRecommendation = nil
+            refreshVariant = 0
+        } else if forceRefresh {
+            refreshVariant += 1
+        }
+
+        let variant = refreshVariant
+        phase = .loading
         let newTask = Task { [weak self] in
             guard let self else { return }
-            await self.run(spot: spot)
+            await self.run(spot: spot, variant: variant)
         }
         task = newTask
         await newTask.value
@@ -37,56 +56,101 @@ final class WeatherSummarizeGenerator {
         task?.cancel()
         task = nil
         phase = .idle
+        currentSpotID = nil
+        lastRecommendation = nil
+        refreshVariant = 0
     }
 
-    private func run(spot: Spot) async {
+    private func run(spot: Spot, variant: Int) async {
         guard !spot.hourlyWaves.isEmpty || !spot.forecastSlots.isEmpty else {
             phase = .unavailable(Self.unavailableRecommendation(for: spot))
             return
         }
 
-        guard case .available = SystemLanguageModel.default.availability else {
-            phase = .unavailable(Self.fallbackRecommendation(for: spot))
+        do {
+            try await Task.sleep(for: .milliseconds(200))
+        } catch {
             return
         }
 
-        phase = .loading
+        guard case .available = SystemLanguageModel.default.availability else {
+            let recommendation = distinctRecommendation(
+                Self.fallbackRecommendation(for: spot, variant: variant),
+                spot: spot,
+                variant: variant
+            )
+            phase = .unavailable(recommendation)
+            lastRecommendation = recommendation
+            return
+        }
 
         do {
             let session = LanguageModelSession(instructions: Self.instructions)
             let response = try await session.respond(
-                to: Self.prompt(for: spot),
+                to: Self.prompt(for: spot, variant: variant),
                 generating: SurfRecommendation.self
             )
             try Task.checkCancellation()
-            phase = .ready(Self.normalizedRecommendation(from: response.content, spot: spot))
+            let recommendation = distinctRecommendation(
+                Self.normalizedRecommendation(from: response.content, spot: spot, variant: variant),
+                spot: spot,
+                variant: variant
+            )
+            phase = .ready(recommendation)
+            lastRecommendation = recommendation
         } catch is CancellationError {
             // Superseded by a newer request; let it drive the next state.
         } catch {
-            phase = .failed(Self.fallbackRecommendation(for: spot))
+            let recommendation = distinctRecommendation(
+                Self.fallbackRecommendation(for: spot, variant: variant),
+                spot: spot,
+                variant: variant
+            )
+            phase = .failed(recommendation)
+            lastRecommendation = recommendation
         }
     }
 
+    private func distinctRecommendation(
+        _ recommendation: SurfRecommendation,
+        spot: Spot,
+        variant: Int
+    ) -> SurfRecommendation {
+        guard variant > 0, recommendation == lastRecommendation else {
+            return recommendation
+        }
+        return Self.fallbackRecommendation(for: spot, variant: variant)
+    }
+
     private static let instructions = """
-    You are a concise surf coach. Given a single spot's 24-hour surf forecast,
-    return a structured recommendation for a recreational surfer.
+    You are a practical surf coach. Given a single spot's 24-hour surf forecast,
+    return a structured, forecast-specific recommendation for a recreational surfer.
 
     ALWAYS pick a best window — even on SKIP, pick the LEAST-BAD hours
     (the relatively better part of the forecast). Exclude only the very
     worst hours from that window. Never return "none" or empty.
 
-    Return exactly 3 short reasons. Base them only on the provided forecast:
-    wave height, period, wind, tide, water temperature, air temperature, and weather.
+    The summary must include concrete forecast details, not a generic vibe check:
+    mention the best timing plus at least two measurable factors such as wave
+    height, period, wind, tide, water temperature, air temperature, or weather.
+
+    Return exactly 3 short reasons. Each reason must be based only on the
+    provided forecast and should name a measurable surf factor. Avoid generic
+    phrases like "conditions look good" unless they are backed by a metric.
     Use plain sentences, stable wording, and no markdown. Keep the summary
     under 36 words and the action under 18 words. English only.
     """
 
-    private static func prompt(for spot: Spot) -> String {
+    private static func prompt(for spot: Spot, variant: Int) -> String {
         var lines: [String] = [
             "Spot: \(spot.name)",
             "Now: water \(Int(round(spot.waterTempC)))°C, air \(Int(round(spot.weather.airTempC)))°C, \(spot.weather.condition.label)",
             "Wind: \(Int(round(spot.wind.speedKmh))) km/h gusting \(Int(round(spot.wind.gustKmh))) km/h from \(cardinal(from: spot.wind.directionDegrees)) (\(Int(round(spot.wind.directionDegrees)))°)"
         ]
+
+        if variant > 0 {
+            lines.append("Refresh request \(variant): keep the same forecast facts, but use fresh wording and emphasize \(refreshFocus(for: variant)). Do not repeat prior phrasing.")
+        }
 
         if let tide = spot.tide?.current {
             lines.append("Tide: \(tide.state.label), \(heightLabel(tide.seaLevelHeightMeters)) MSL")
@@ -141,23 +205,153 @@ final class WeatherSummarizeGenerator {
         return directions[index]
     }
 
-    private static func fallbackRecommendation(for spot: Spot) -> SurfRecommendation {
-        normalizedRecommendation(from: nil, spot: spot)
+    private static func refreshFocus(for variant: Int) -> String {
+        switch variant % 3 {
+        case 1:
+            return "timing and the best paddle-out window"
+        case 2:
+            return "wind, tide, and cleanup risk"
+        default:
+            return "wave size, period, and session decision"
+        }
     }
 
-    private static func normalizedRecommendation(from _: SurfRecommendation?, spot: Spot) -> SurfRecommendation {
+    private static func fallbackRecommendation(for spot: Spot, variant: Int = 0) -> SurfRecommendation {
+        normalizedRecommendation(from: nil, spot: spot, variant: variant)
+    }
+
+    private static func normalizedRecommendation(from generated: SurfRecommendation?, spot: Spot, variant: Int = 0) -> SurfRecommendation {
         guard let snapshot = conditionSnapshot(for: spot) else {
             return unavailableRecommendation(for: spot)
         }
 
+        guard let generated else {
+            return canonicalRecommendation(for: snapshot, variant: variant)
+        }
+
+        let summary = cleaned(generated.summary)
+        let bestWindow = generated.bestWindow.trimmingCharacters(in: .whitespacesAndNewlines)
+        let action = cleaned(generated.action)
+        let canonicalReasons = canonicalReasons(for: snapshot, variant: variant)
+        let reasons = generated.reasons
+            .map(cleaned)
+            .filter { isQualityReason($0) }
+
         return SurfRecommendation(
+            verdict: isVerdictAligned(generated.verdict, with: snapshot) ? generated.verdict : snapshot.verdict,
+            summary: isQualitySummary(summary) ? summary : canonicalSummary(for: snapshot, variant: variant),
+            bestWindow: isUsableBestWindow(bestWindow) ? bestWindow : snapshot.bestWindow,
+            confidence: isConfidenceAligned(generated.confidence, with: snapshot) ? generated.confidence : snapshot.confidence,
+            reasons: qualityReasons(from: reasons, canonicalReasons: canonicalReasons),
+            action: isQualityAction(action) ? action : canonicalAction(for: snapshot, variant: variant)
+        )
+    }
+
+    private static func canonicalRecommendation(for snapshot: ConditionSnapshot, variant: Int = 0) -> SurfRecommendation {
+        SurfRecommendation(
             verdict: snapshot.verdict,
-            summary: canonicalSummary(for: snapshot),
+            summary: canonicalSummary(for: snapshot, variant: variant),
             bestWindow: snapshot.bestWindow,
             confidence: snapshot.confidence,
-            reasons: canonicalReasons(for: snapshot),
-            action: canonicalAction(for: snapshot)
+            reasons: canonicalReasons(for: snapshot, variant: variant),
+            action: canonicalAction(for: snapshot, variant: variant)
         )
+    }
+
+    private static func isUsableBestWindow(_ value: String) -> Bool {
+        let lowered = value.lowercased()
+        return !value.isEmpty
+            && lowered != "none"
+            && lowered != "n/a"
+            && lowered != "unknown"
+    }
+
+    private static func cleaned(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func isQualitySummary(_ value: String) -> Bool {
+        wordCount(in: value) >= 12
+            && wordCount(in: value) <= 42
+            && forecastSignalCount(in: value) >= 2
+            && !isGeneric(value)
+    }
+
+    private static func isQualityReason(_ value: String) -> Bool {
+        wordCount(in: value) >= 5
+            && forecastSignalCount(in: value) >= 1
+            && !isGeneric(value)
+    }
+
+    private static func isQualityAction(_ value: String) -> Bool {
+        wordCount(in: value) >= 4
+            && wordCount(in: value) <= 20
+            && !isGeneric(value)
+    }
+
+    private static func qualityReasons(from generated: [String], canonicalReasons: [String]) -> [String] {
+        var resolved: [String] = []
+        for reason in generated + canonicalReasons where !resolved.contains(reason) {
+            resolved.append(reason)
+            if resolved.count == 3 { break }
+        }
+        return resolved
+    }
+
+    private static func isVerdictAligned(_ verdict: SurfVerdict, with snapshot: ConditionSnapshot) -> Bool {
+        verdict == snapshot.verdict
+            || snapshot.confidence == .low
+            || (verdict == .maybe && snapshot.verdict != .maybe)
+            || (snapshot.verdict == .maybe && verdict != .maybe)
+    }
+
+    private static func isConfidenceAligned(_ confidence: SurfConfidence, with snapshot: ConditionSnapshot) -> Bool {
+        confidence == snapshot.confidence
+            || snapshot.confidence == .medium
+            || confidence == .medium
+    }
+
+    private static func forecastSignalCount(in value: String) -> Int {
+        let lowered = value.lowercased()
+        let signals = [
+            "wave", "swell", "period", "wind", "gust", "tide", "water",
+            "air", "weather", "km/h", "degrees"
+        ]
+        var count = signals.reduce(0) { count, signal in
+            lowered.contains(signal) ? count + 1 : count
+        }
+        if value.contains(where: \.isNumber) {
+            count += 1
+        }
+        if lowered.contains("°c") || lowered.contains(" c") {
+            count += 1
+        }
+        if lowered.contains(":") {
+            count += 1
+        }
+        return count
+    }
+
+    private static func isGeneric(_ value: String) -> Bool {
+        let lowered = value.lowercased()
+        let genericPhrases = [
+            "looks good",
+            "looks decent",
+            "looks fun",
+            "good conditions",
+            "decent conditions",
+            "fun conditions",
+            "worth checking",
+            "check it out",
+            "could be good"
+        ]
+        return genericPhrases.contains { lowered.contains($0) }
+    }
+
+    private static func wordCount(in value: String) -> Int {
+        value.split(whereSeparator: \.isWhitespace).count
     }
 
     private static func conditionSnapshot(for spot: Spot) -> ConditionSnapshot? {
@@ -265,33 +459,81 @@ final class WeatherSummarizeGenerator {
         )
     }
 
-    private static func canonicalSummary(for snapshot: ConditionSnapshot) -> String {
+    private static func canonicalSummary(for snapshot: ConditionSnapshot, variant: Int = 0) -> String {
+        let variantIndex = variant % 3
         switch snapshot.verdict {
         case .go:
-            return "The best pulse reaches \(snapshot.peakHeightLabel) m around \(timeLabel(for: snapshot.peak.hour)), with enough period to justify a session."
+            switch variantIndex {
+            case 1:
+                return "Aim for \(snapshot.bestWindow): the peak sits near \(snapshot.peakHeightLabel) m at \(timeLabel(for: snapshot.peak.hour)), with \(snapshot.periodLabel)s period and \(snapshot.windLabel) km/h wind supporting a session."
+            case 2:
+                return "The call is strongest around \(snapshot.bestWindow), when \(snapshot.peakHeightLabel) m waves pair with \(snapshot.periodLabel)s period and wind stays near \(snapshot.windLabel) km/h."
+            default:
+                return "Best window is \(snapshot.bestWindow) as waves reach \(snapshot.peakHeightLabel) m near \(timeLabel(for: snapshot.peak.hour)), period averages \(snapshot.periodLabel)s, and wind sits near \(snapshot.windLabel) km/h."
+            }
         case .maybe:
-            return "There is a usable window around \(timeLabel(for: snapshot.peak.hour)), but the setup is mixed and worth timing carefully."
+            switch variantIndex {
+            case 1:
+                return "Time it around \(snapshot.bestWindow): waves touch \(snapshot.peakHeightLabel) m near \(timeLabel(for: snapshot.peak.hour)), but \(snapshot.windLabel) km/h wind and \(snapshot.periodLabel)s period keep it conditional."
+            case 2:
+                return "The window worth watching is \(snapshot.bestWindow), with \(snapshot.peakHeightLabel) m surf, \(snapshot.periodLabel)s period, and wind near \(snapshot.windLabel) km/h adding some uncertainty."
+            default:
+                return "Usable window is \(snapshot.bestWindow), with \(snapshot.peakHeightLabel) m waves near \(timeLabel(for: snapshot.peak.hour)), \(snapshot.periodLabel)s period, and \(snapshot.windLabel) km/h wind making timing important."
+            }
         case .skip:
-            return "Conditions look weak or messy, with the least-bad window near \(timeLabel(for: snapshot.peak.hour))."
+            switch variantIndex {
+            case 1:
+                return "If you check it, use \(snapshot.bestWindow): the best pulse is only \(snapshot.peakHeightLabel) m near \(timeLabel(for: snapshot.peak.hour)), with \(snapshot.windLabel) km/h wind and \(snapshot.periodLabel)s period."
+            case 2:
+                return "The least-bad option is \(snapshot.bestWindow), but \(snapshot.peakHeightLabel) m waves, \(snapshot.periodLabel)s period, and \(snapshot.windLabel) km/h wind point toward a pass."
+            default:
+                return "Least-bad window is \(snapshot.bestWindow), but waves only reach \(snapshot.peakHeightLabel) m near \(timeLabel(for: snapshot.peak.hour)) with \(snapshot.windLabel) km/h wind and \(snapshot.periodLabel)s period."
+            }
         }
     }
 
-    private static func canonicalReasons(for snapshot: ConditionSnapshot) -> [String] {
-        [
+    private static func canonicalReasons(for snapshot: ConditionSnapshot, variant: Int = 0) -> [String] {
+        let base = [
             "Peak wave around \(snapshot.peakHeightLabel) m near \(timeLabel(for: snapshot.peak.hour)).",
             "Average period holds near \(snapshot.periodLabel) s with \(snapshot.tideLabel).",
-            "Wind is \(snapshot.windLabel) km/h with \(snapshot.waterLabel) degrees water."
+            "Wind is \(snapshot.windLabel) km/h and water is \(snapshot.waterLabel)°C."
         ]
+        let alternates = [
+            "Best timing centers on \(snapshot.bestWindow).",
+            "Air is \(Int(round(snapshot.airTempC)))°C with \(snapshot.weatherLabel.lowercased()) weather.",
+            "Gusts are near \(Int(round(snapshot.windGustKmh))) km/h, so watch surface texture."
+        ]
+
+        switch variant % 3 {
+        case 1:
+            return [base[0], alternates[0], base[2]]
+        case 2:
+            return [base[1], alternates[2], alternates[1]]
+        default:
+            return base
+        }
     }
 
-    private static func canonicalAction(for snapshot: ConditionSnapshot) -> String {
+    private static func canonicalAction(for snapshot: ConditionSnapshot, variant: Int = 0) -> String {
         switch snapshot.verdict {
         case .go:
-            return "Paddle during the peak window."
+            switch variant % 3 {
+            case 1: return "Target the cleanest part of the window."
+            case 2: return "Go while the peak and wind line up."
+            default: return "Paddle during the peak window."
+            }
         case .maybe:
-            return "Go only if the wind settles."
+            switch variant % 3 {
+            case 1: return "Check wind before committing."
+            case 2: return "Keep it flexible and time the window."
+            default: return "Go only if the wind settles."
+            }
         case .skip:
-            return "Save the session for a cleaner pulse."
+            switch variant % 3 {
+            case 1: return "Only paddle if local checks improve."
+            case 2: return "Wait for more size or cleaner wind."
+            default: return "Save the session for a cleaner pulse."
+            }
         }
     }
 

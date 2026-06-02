@@ -17,6 +17,11 @@ struct SpotDetailView: View {
             Color.white.ignoresSafeArea()
             content
         }
+        .task(id: spot.id) {
+            if summarizer.phase == .idle {
+                await summarizer.generate(for: spot)
+            }
+        }
         .preferredColorScheme(.light)
     }
 
@@ -76,7 +81,7 @@ struct SpotDetailView: View {
     }
 
     private func refreshRecommendation() {
-        Task { await summarizer.generate(for: spot) }
+        Task { await summarizer.generate(for: spot, forceRefresh: true) }
     }
 
     private var aiRecommendationLoadingOverlay: some View {

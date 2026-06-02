@@ -19,7 +19,7 @@ struct SpotDetailRecommendationSection: View {
 
     @ViewBuilder
     private var content: some View {
-        if spot.isPlaceholder || spot.hourlyWaves.isEmpty {
+        if spot.isPlaceholder || (spot.hourlyWaves.isEmpty && spot.forecastSlots.isEmpty) {
             recommendationCard(
                 title: "AI surf call",
                 stateIcon: "exclamationmark.triangle",
