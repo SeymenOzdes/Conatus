@@ -14,7 +14,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = (scene as? UIWindowScene) else { return }
         let window = UIWindow(windowScene: windowScene)
-        window.rootViewController = RootViewController() //makeRoot(in: window)
+        window.rootViewController = makeRoot(in: window)
         window.makeKeyAndVisible()
         self.window = window
     }
@@ -22,6 +22,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     // MARK: - Root
 
     private func makeRoot(in window: UIWindow) -> UIViewController {
+        guard AppLaunchConfiguration.shouldStartWithOnboarding else {
+            return RootViewController()
+        }
+
         return OnboardingHostController { [weak self, weak window] in
             guard let window else { return }
             self?.swapRoot(to: RootViewController(), in: window)
@@ -65,4 +69,3 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // to restore the scene back to its current state.
     }
 }
-

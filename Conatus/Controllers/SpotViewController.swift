@@ -9,6 +9,7 @@ import SwiftUI
 import UIKit
 import MapKit
 
+@MainActor
 final class SpotViewController: UIViewController {
 
     // MARK: - View
@@ -57,6 +58,9 @@ final class SpotViewController: UIViewController {
         map.translatesAutoresizingMaskIntoConstraints = false
         return map
     }()
+    private let startupSearchService = SearchService()
+    private let currentLocationRequester = CurrentLocationRequester()
+    private var startupMapTask: Task<Void, Never>?
 
     // MARK: - Detail sheet
 
@@ -107,6 +111,10 @@ final class SpotViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
+    deinit {
+        startupMapTask?.cancel()
+    }
+
     // MARK: - Lifecycle
 
     override func loadView() {
@@ -119,8 +127,8 @@ final class SpotViewController: UIViewController {
         installSearchBar()
         installAddButton()
         installCenterDot()
-        installUserSpotsOnMap()
         observeUserSpots()
+        loadStartupMapContent()
     }
 
     // MARK: - Layout
@@ -185,33 +193,75 @@ final class SpotViewController: UIViewController {
 
     // MARK: - User spots
 
-    private func installUserSpotsOnMap() {
-        let spots = UserSpotsRepository.shared.spots.map(Spot.placeholder(from:))
-        let annotations = spots.map { SpotAnnotation(spot: $0) }
-        mapView.addAnnotations(annotations)
-    }
-
     private func observeUserSpots() {
         UserSpotsRepository.shared.onChange = { [weak self] spots in
-            self?.syncUserSpotAnnotations(spots)
+            self?.handleUserSpotsChanged(spots)
         }
     }
 
-    private func syncUserSpotAnnotations(_ userSpots: [UserSpot]) {
-        let knownIDs = Set(
-            mapView.annotations
-                .compactMap { ($0 as? SpotAnnotation)?.spot.id }
-        )
-        let newSpots = userSpots
-            .filter { !knownIDs.contains($0.id) }
-            .map(Spot.placeholder(from:))
-        guard !newSpots.isEmpty else { return }
-        mapView.addAnnotations(newSpots.map { SpotAnnotation(spot: $0) })
-
-        // Pan to the newest spot so the user sees the result of the action.
-        if let last = newSpots.last {
-            mapView.setCenter(last.coordinate, animated: true)
+    private func handleUserSpotsChanged(_ userSpots: [UserSpot]) {
+        startupMapTask?.cancel()
+        if !renderUserSpotsIfAvailable(userSpots, animated: true) {
+            loadStartupMapContent()
         }
+    }
+
+    // MARK: - Startup map content
+
+    private func loadStartupMapContent() {
+        startupMapTask?.cancel()
+
+        if renderUserSpotsIfAvailable(UserSpotsRepository.shared.spots, animated: false) {
+            return
+        }
+
+        guard currentLocationRequester.isAuthorized else {
+            mapView.renderDefaultSpots(animated: false)
+            return
+        }
+
+        startupMapTask = Task { [weak self] in
+            guard let self else { return }
+            guard let coordinate = await currentLocationRequester.requestCurrentCoordinate() else {
+                renderDefaultSpotsIfStillNeeded(animated: false)
+                return
+            }
+
+            guard !Task.isCancelled, UserSpotsRepository.shared.spots.isEmpty else { return }
+            mapView.center(on: coordinate, animated: false)
+
+            do {
+                let response = try await startupSearchService.searchNearby(
+                    lat: coordinate.latitude,
+                    lng: coordinate.longitude,
+                    limit: 20
+                )
+                guard !Task.isCancelled, UserSpotsRepository.shared.spots.isEmpty else { return }
+                if response.spots.isEmpty {
+                    mapView.renderDefaultSpots(animated: true)
+                } else {
+                    mapView.renderSearchResults(response.spots, animated: true)
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                renderDefaultSpotsIfStillNeeded(animated: true)
+            }
+        }
+    }
+
+    @discardableResult
+    private func renderUserSpotsIfAvailable(_ userSpots: [UserSpot], animated: Bool) -> Bool {
+        guard !userSpots.isEmpty else { return false }
+        mapView.renderSavedSpots(userSpots.map(Spot.placeholder(from:)), animated: animated)
+        return true
+    }
+
+    private func renderDefaultSpotsIfStillNeeded(animated: Bool) {
+        guard UserSpotsRepository.shared.spots.isEmpty else {
+            _ = renderUserSpotsIfAvailable(UserSpotsRepository.shared.spots, animated: animated)
+            return
+        }
+        mapView.renderDefaultSpots(animated: animated)
     }
 
     // MARK: - Actions
@@ -258,6 +308,75 @@ final class SpotViewController: UIViewController {
         guard isViewLoaded else { return }
         for annotation in mapView.selectedAnnotations {
             mapView.deselectAnnotation(annotation, animated: true)
+        }
+    }
+}
+
+@MainActor
+private final class CurrentLocationRequester: NSObject, CLLocationManagerDelegate {
+    private let manager = CLLocationManager()
+    private var continuation: CheckedContinuation<CLLocationCoordinate2D?, Never>?
+    private var timeoutTask: Task<Void, Never>?
+
+    var isAuthorized: Bool {
+        switch manager.authorizationStatus {
+        case .authorizedAlways, .authorizedWhenInUse:
+            return true
+        default:
+            return false
+        }
+    }
+
+    override init() {
+        super.init()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+    }
+
+    deinit {
+        timeoutTask?.cancel()
+        continuation?.resume(returning: nil)
+    }
+
+    func requestCurrentCoordinate() async -> CLLocationCoordinate2D? {
+        guard isAuthorized else { return nil }
+
+        if let cachedLocation = manager.location,
+           abs(cachedLocation.timestamp.timeIntervalSinceNow) < 300 {
+            return cachedLocation.coordinate
+        }
+
+        return await withCheckedContinuation { continuation in
+            self.continuation?.resume(returning: nil)
+            self.continuation = continuation
+            manager.requestLocation()
+            timeoutTask?.cancel()
+            timeoutTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(8))
+                guard !Task.isCancelled else { return }
+                self?.finishRequest(with: nil)
+            }
+        }
+    }
+
+    private func finishRequest(with coordinate: CLLocationCoordinate2D?) {
+        guard let continuation else { return }
+        self.continuation = nil
+        timeoutTask?.cancel()
+        timeoutTask = nil
+        continuation.resume(returning: coordinate)
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        let coordinate = locations.last?.coordinate
+        Task { @MainActor [weak self] in
+            self?.finishRequest(with: coordinate)
+        }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        Task { @MainActor [weak self] in
+            self?.finishRequest(with: nil)
         }
     }
 }

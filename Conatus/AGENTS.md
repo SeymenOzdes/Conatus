@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code when working with this UIKit iOS project.
+This file provides guidance to Codex when working with this UIKit iOS project.
 
 ## Project Overview
 
@@ -18,7 +18,7 @@ This file provides guidance to Claude Code when working with this UIKit iOS proj
 Open Conatus.xcodeproj and build with Cmd+B
 ```
 
-**CLI (Debug on iPhone 16 simulator):**
+**CLI (Debug on iPhone 17 pro simulator):**
 ```bash
 xcodebuild -scheme Conatus -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
@@ -121,7 +121,7 @@ Prefer property observers when possible:
 
 class ViewController: UIViewController {
     private var model = ViewModel()
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
         // Use Combine or simple property watching

@@ -24,6 +24,11 @@ final class SpotAnnotation: NSObject, MKAnnotation {
 final class SpotMapView: MKMapView {
 
     private static let reuseID = "SpotMarker"
+    private static let defaultRegion = MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: 38.2887, longitude: 26.3778),
+        span: MKCoordinateSpan(latitudeDelta: 0.2, longitudeDelta: 0.2)
+    )
+    private static let focusSpan = MKCoordinateSpan(latitudeDelta: 0.2, longitudeDelta: 0.2)
 
     // MARK: - Callbacks
 
@@ -55,15 +60,61 @@ final class SpotMapView: MKMapView {
         delegate = self
         register(MKMarkerAnnotationView.self, forAnnotationViewWithReuseIdentifier: Self.reuseID)
 
-        setRegion(
-            MKCoordinateRegion(
-                center: CLLocationCoordinate2D(latitude: 38.2887, longitude: 26.3778),
-                span: MKCoordinateSpan(latitudeDelta: 0.2, longitudeDelta: 0.2)
-            ),
-            animated: false
-        )
+        setRegion(Self.defaultRegion, animated: false)
+    }
 
-        addAnnotations(Spot.samples.map { SpotAnnotation(spot: $0) })
+    // MARK: - Spot rendering
+
+    func renderDefaultSpots(animated: Bool) {
+        setRegion(Self.defaultRegion, animated: animated)
+        replaceSpotAnnotations(with: Spot.samples.map { SpotAnnotation(spot: $0) })
+    }
+
+    func renderSavedSpots(_ spots: [Spot], animated: Bool) {
+        let annotations = spots.map { SpotAnnotation(spot: $0) }
+        replaceSpotAnnotations(with: annotations)
+        focus(on: annotations, animated: animated)
+    }
+
+    func renderSearchResults(_ results: [SpotResult], animated: Bool) {
+        let annotations = results.map { result in
+            SpotAnnotation(spot: Spot.placeholder(from: result), searchResult: result)
+        }
+        replaceSpotAnnotations(with: annotations)
+        focus(on: annotations, animated: animated)
+    }
+
+    func center(on coordinate: CLLocationCoordinate2D, animated: Bool) {
+        setRegion(
+            MKCoordinateRegion(center: coordinate, span: Self.focusSpan),
+            animated: animated
+        )
+    }
+
+    private func replaceSpotAnnotations(with annotations: [SpotAnnotation]) {
+        removeAnnotations(self.annotations.compactMap { $0 as? SpotAnnotation })
+        addAnnotations(annotations)
+    }
+
+    private func focus(on annotations: [SpotAnnotation], animated: Bool) {
+        guard !annotations.isEmpty else { return }
+
+        if annotations.count == 1, let coordinate = annotations.first?.coordinate {
+            center(on: coordinate, animated: animated)
+            return
+        }
+
+        let rect = annotations
+            .map { MKMapPoint($0.coordinate) }
+            .reduce(MKMapRect.null) { rect, point in
+                rect.union(MKMapRect(x: point.x, y: point.y, width: 0, height: 0))
+            }
+
+        setVisibleMapRect(
+            rect,
+            edgePadding: UIEdgeInsets(top: 120, left: 48, bottom: 160, right: 48),
+            animated: animated
+        )
     }
 }
 
