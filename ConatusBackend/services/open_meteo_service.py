@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -38,9 +38,12 @@ _FORECAST_HOURS = 24
 _MARINE_HOURLY = (
     "wave_height,wave_period,wave_direction,"
     "swell_wave_height,swell_wave_period,swell_wave_direction,"
-    "sea_surface_temperature"
+    "sea_surface_temperature,sea_level_height_msl"
 )
-_MARINE_CURRENT = "wave_height,wave_period,wave_direction,sea_surface_temperature"
+_MARINE_CURRENT = (
+    "wave_height,wave_period,wave_direction,"
+    "sea_surface_temperature,sea_level_height_msl"
+)
 
 _FORECAST_CURRENT = (
     "temperature_2m,weather_code,"
@@ -110,6 +113,7 @@ async def _fetch_from_open_meteo(lat: float, lng: float) -> dict[str, Any] | Non
             "hourly": _MARINE_HOURLY,
             "forecast_hours": _FORECAST_HOURS,
             "timezone": "auto",
+            "cell_selection": "sea",
         },
     )
     forecast_task = _get_json(
@@ -159,13 +163,36 @@ def _merge(marine: dict[str, Any], forecast: dict[str, Any]) -> dict[str, Any] |
     f_hourly = forecast.get("hourly") or {}
 
     m_times: list[str] = m_hourly.get("time") or []
-    f_times: list[str] = f_hourly.get("time") or []
-
     wave_heights = m_hourly.get("wave_height") or []
     if not wave_heights or all(v is None for v in wave_heights):
         return None
 
+    hourly = _merge_hourly(m_hourly, f_hourly)
+    tide = _build_tide(marine.get("current") or {}, m_hourly)
+    forecast_slots = _build_forecast_slots(hourly, tide)
+    best_windows = _build_best_windows(forecast_slots)
+
+    m_current = marine.get("current") or {}
+    f_current = forecast.get("current") or {}
+    current = _merge_current(m_current, f_current)
+
+    if not current["timestamp"]:
+        current["timestamp"] = datetime.now(timezone.utc).isoformat()
+
+    return {
+        "conditions": current,
+        "hourly": hourly,
+        "tide": tide,
+        "forecast_slots": forecast_slots,
+        "best_windows": best_windows,
+    }
+
+
+def _merge_hourly(m_hourly: dict[str, Any], f_hourly: dict[str, Any]) -> list[dict[str, Any]]:
+    m_times: list[str] = m_hourly.get("time") or []
+    f_times: list[str] = f_hourly.get("time") or []
     f_time_index = {t: i for i, t in enumerate(f_times)}
+    wave_heights = m_hourly.get("wave_height") or []
 
     hourly: list[dict[str, Any]] = []
     for i, t in enumerate(m_times):
@@ -185,10 +212,11 @@ def _merge(marine: dict[str, Any], forecast: dict[str, Any]) -> dict[str, Any] |
                 "weather_code": _coerce_int(_at(f_hourly.get("weather_code"), fj)),
             }
         )
+    return hourly
 
-    m_current = marine.get("current") or {}
-    f_current = forecast.get("current") or {}
-    current = {
+
+def _merge_current(m_current: dict[str, Any], f_current: dict[str, Any]) -> dict[str, Any]:
+    return {
         "timestamp": m_current.get("time") or f_current.get("time") or "",
         "air_temp_c": f_current.get("temperature_2m"),
         "water_temp_c": m_current.get("sea_surface_temperature"),
@@ -201,16 +229,132 @@ def _merge(marine: dict[str, Any], forecast: dict[str, Any]) -> dict[str, Any] |
         "weather_code": _coerce_int(f_current.get("weather_code")),
     }
 
-    if not current["timestamp"]:
-        current["timestamp"] = datetime.now(timezone.utc).isoformat()
 
-    return {"conditions": current, "hourly": hourly}
+def _build_tide(current: dict[str, Any], m_hourly: dict[str, Any]) -> dict[str, Any] | None:
+    times: list[str] = m_hourly.get("time") or []
+    heights: list[Any] = m_hourly.get("sea_level_height_msl") or []
+    samples: list[tuple[str, float | None]] = [
+        (t, _coerce_float(_at(heights, i))) for i, t in enumerate(times[:_FORECAST_HOURS])
+    ]
+    samples = [(t, h) for t, h in samples if h is not None]
+
+    if not samples:
+        return None
+
+    values = [h for _, h in samples]
+    states = [_tide_state_at(values, i) for i in range(len(values))]
+
+    timeline = [
+        {
+            "timestamp": timestamp,
+            "sea_level_height_m": height,
+            "state": states[i],
+        }
+        for i, (timestamp, height) in enumerate(samples)
+    ]
+
+    current_time = current.get("time") or samples[0][0]
+    current_height = _coerce_float(current.get("sea_level_height_msl"))
+    current_index = _nearest_time_index(samples, current_time)
+    if current_height is None:
+        current_height = samples[current_index][1]
+
+    state = states[current_index] if 0 <= current_index < len(states) else "unknown"
+    next_extreme = _next_tide_extreme(samples, states, current_index)
+
+    return {
+        "current": {
+            "timestamp": current_time,
+            "sea_level_height_m": current_height,
+            "state": state,
+            "next_extreme": next_extreme,
+        },
+        "timeline": timeline,
+    }
+
+
+def _build_forecast_slots(
+    hourly: list[dict[str, Any]],
+    tide: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    tide_by_time = {
+        sample["timestamp"]: sample["state"]
+        for sample in ((tide or {}).get("timeline") or [])
+    }
+
+    slots: list[dict[str, Any]] = []
+    for start in range(0, min(len(hourly), _FORECAST_HOURS), 3):
+        chunk = hourly[start : start + 3]
+        if len(chunk) < 3:
+            continue
+
+        start_timestamp = chunk[0]["timestamp"]
+        wave_height = _avg([row.get("wave_height_m") for row in chunk])
+        wave_period = _avg([row.get("wave_period_s") for row in chunk])
+        wind_speed = _avg([row.get("wind_speed_kmh") for row in chunk])
+        precipitation = _sum_present([row.get("precipitation_mm") for row in chunk])
+        score = _surf_score(wave_height, wave_period, wind_speed, precipitation)
+
+        slots.append(
+            {
+                "start_timestamp": start_timestamp,
+                "end_timestamp": _add_hours_iso(start_timestamp, 3),
+                "part_of_day": _part_of_day(start_timestamp),
+                "wave_height_m": _round(wave_height, 2),
+                "wave_period_s": _round(wave_period, 1),
+                "swell_direction_deg": _round(
+                    _avg([row.get("swell_direction_deg") for row in chunk]), 0
+                ),
+                "wind_speed_kmh": _round(wind_speed, 1),
+                "wind_direction_deg": _round(
+                    _avg([row.get("wind_direction_deg") for row in chunk]), 0
+                ),
+                "precipitation_mm": _round(precipitation, 1),
+                "weather_code": _first_present([row.get("weather_code") for row in chunk]),
+                "tide_state": _first_present(
+                    [tide_by_time.get(row["timestamp"]) for row in chunk]
+                )
+                or "unknown",
+                "score": score,
+                "verdict": _verdict(score),
+            }
+        )
+    return slots
+
+
+def _build_best_windows(slots: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    windows: list[dict[str, Any]] = []
+    for part in ("morning", "midday", "evening"):
+        candidates = [slot for slot in slots if slot["part_of_day"] == part]
+        if not candidates:
+            continue
+        best = max(candidates, key=lambda slot: slot["score"])
+        windows.append(
+            {
+                "part_of_day": part,
+                "start_timestamp": best["start_timestamp"],
+                "end_timestamp": best["end_timestamp"],
+                "score": best["score"],
+                "verdict": best["verdict"],
+                "summary": _best_window_summary(best),
+            }
+        )
+    return windows
 
 
 def _at(seq: list[Any] | None, idx: int | None) -> Any:
     if seq is None or idx is None or idx < 0 or idx >= len(seq):
         return None
     return seq[idx]
+
+
+def _coerce_float(v: Any) -> float | None:
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
 
 
 def _coerce_int(v: Any) -> int | None:
@@ -220,3 +364,147 @@ def _coerce_int(v: Any) -> int | None:
         return int(v)
     except (TypeError, ValueError):
         return None
+
+
+def _tide_state_at(values: list[float], idx: int) -> str:
+    current = values[idx]
+    prev_value = values[idx - 1] if idx > 0 else None
+    next_value = values[idx + 1] if idx + 1 < len(values) else None
+
+    if prev_value is not None and next_value is not None:
+        if current >= prev_value and current >= next_value:
+            return "high"
+        if current <= prev_value and current <= next_value:
+            return "low"
+
+    comparison: float
+    if prev_value is None and next_value is not None:
+        comparison = next_value - current
+    elif next_value is None and prev_value is not None:
+        comparison = current - prev_value
+    elif prev_value is not None and next_value is not None:
+        comparison = next_value - prev_value
+    else:
+        return "unknown"
+
+    if abs(comparison) < 0.02:
+        return "steady"
+    return "rising" if comparison > 0 else "falling"
+
+
+def _nearest_time_index(samples: list[tuple[str, float]], timestamp: str) -> int:
+    exact = next((i for i, sample in enumerate(samples) if sample[0] == timestamp), None)
+    return exact if exact is not None else 0
+
+
+def _next_tide_extreme(
+    samples: list[tuple[str, float]],
+    states: list[str],
+    start_index: int,
+) -> dict[str, Any] | None:
+    for i in range(max(0, start_index + 1), len(samples)):
+        if states[i] not in {"high", "low"}:
+            continue
+        timestamp, height = samples[i]
+        return {
+            "timestamp": timestamp,
+            "type": states[i],
+            "sea_level_height_m": height,
+        }
+    return None
+
+
+def _avg(values: list[Any]) -> float | None:
+    present = [_coerce_float(v) for v in values]
+    present = [v for v in present if v is not None]
+    if not present:
+        return None
+    return sum(present) / len(present)
+
+
+def _sum_present(values: list[Any]) -> float | None:
+    present = [_coerce_float(v) for v in values]
+    present = [v for v in present if v is not None]
+    if not present:
+        return None
+    return sum(present)
+
+
+def _first_present(values: list[Any]) -> Any:
+    return next((v for v in values if v is not None), None)
+
+
+def _round(value: float | None, digits: int) -> float | None:
+    return None if value is None else round(value, digits)
+
+
+def _clamp(value: float, lower: float, upper: float) -> float:
+    return max(lower, min(upper, value))
+
+
+def _surf_score(
+    wave_height_m: float | None,
+    wave_period_s: float | None,
+    wind_speed_kmh: float | None,
+    precipitation_mm: float | None,
+) -> int:
+    avg_wave = wave_height_m or 0.0
+    avg_period = wave_period_s or 0.0
+    avg_wind = wind_speed_kmh or 0.0
+    precipitation = precipitation_mm or 0.0
+
+    height_score = _clamp(avg_wave / 1.5, 0, 1) * 40
+    period_score = _clamp((avg_period - 5) / 7, 0, 1) * 30
+    wind_score = max(0, 1 - max(avg_wind - 8, 0) / 32) * 25
+    weather_score = 5 if precipitation <= 0.5 else 0
+    return round(height_score + period_score + wind_score + weather_score)
+
+
+def _verdict(score: int) -> str:
+    if score >= 70:
+        return "go"
+    if score >= 40:
+        return "maybe"
+    return "skip"
+
+
+def _part_of_day(timestamp: str) -> str:
+    hour = _parse_hour(timestamp)
+    if 5 <= hour < 12:
+        return "morning"
+    if 12 <= hour < 17:
+        return "midday"
+    if 17 <= hour < 21:
+        return "evening"
+    return "night"
+
+
+def _parse_hour(timestamp: str) -> int:
+    try:
+        return datetime.fromisoformat(timestamp).hour
+    except ValueError:
+        return 0
+
+
+def _add_hours_iso(timestamp: str, hours: int) -> str:
+    try:
+        return (datetime.fromisoformat(timestamp) + timedelta(hours=hours)).strftime(
+            "%Y-%m-%dT%H:%M"
+        )
+    except ValueError:
+        return timestamp
+
+
+def _best_window_summary(slot: dict[str, Any]) -> str:
+    wave = slot.get("wave_height_m")
+    period = slot.get("wave_period_s")
+    wind = slot.get("wind_speed_kmh")
+    tide_state = slot.get("tide_state") or "unknown"
+    wave_label = f"{wave:.1f} m" if wave is not None else "unknown waves"
+    period_label = f"{period:.0f}s" if period is not None else "unknown period"
+    wind_label = f"{wind:.0f} km/h" if wind is not None else "unknown"
+    return (
+        f"{slot['verdict'].upper()} · "
+        f"{wave_label} @ {period_label}, "
+        f"{wind_label} wind, {tide_state} tide"
+    )

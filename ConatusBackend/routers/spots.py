@@ -7,7 +7,7 @@ from schemas.conditions import SpotConditionsResponse
 from schemas.spots import SearchResponse
 from services import open_meteo_service
 from services.geocoding_service import geocode_place
-from services.search_service import get_spot_by_id, search_by_geo, search_by_text
+from services.search_service import get_spot_by_id, search_by_geo, search_by_text, search_nearest
 
 router = APIRouter(tags=["spots"])
 
@@ -33,16 +33,27 @@ async def search_spots(
         raise HTTPException(400, "lat and lng must both be provided")
 
     if text_mode:
-        spots = await search_by_text(pool, q, limit)
-        if not spots:
-            coords = await geocode_place(q)
+        q_clean = q.strip() if q is not None else ""
+        if not q_clean:
+            raise HTTPException(400, "provide q or lat+lng")
+
+        spots = await search_by_text(pool, q_clean, limit)
+        match_type = "text" if spots else None
+
+        if not spots and len(q_clean) >= 3:
+            coords = await geocode_place(q_clean)
             if coords is not None:
                 lat_g, lng_g = coords
                 spots = await search_by_geo(pool, lat_g, lng_g, geocode_radius, limit)
+                match_type = "geocode" if spots else None
+                if not spots:
+                    spots = await search_nearest(pool, lat_g, lng_g, 1)
+                    match_type = "nearest" if spots else None
     else:
         spots = await search_by_geo(pool, lat, lng, radius, limit)
+        match_type = "geo" if spots else None
 
-    return SearchResponse(spots=spots)
+    return SearchResponse(spots=spots, match_type=match_type)
 
 
 @router.get("/spots/{spot_id}/conditions", response_model=SpotConditionsResponse)
@@ -63,6 +74,9 @@ async def get_spot_conditions(
             fetched_at=fetched_at,
             conditions=None,
             hourly=[],
+            tide=None,
+            forecast_slots=[],
+            best_windows=[],
             error="No marine data available for this location",
         )
 
@@ -71,4 +85,7 @@ async def get_spot_conditions(
         fetched_at=fetched_at,
         conditions=data["conditions"],
         hourly=data["hourly"],
+        tide=data.get("tide"),
+        forecast_slots=data.get("forecast_slots", []),
+        best_windows=data.get("best_windows", []),
     )

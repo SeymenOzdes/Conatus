@@ -23,6 +23,9 @@ struct Spot: Identifiable {
     let weather: Weather
     let wind: Wind
     let hourlyWaves: [WaveSample]
+    let tide: TideSnapshot?
+    let forecastSlots: [SurfForecastSlot]
+    let bestWindows: [SurfBestWindow]
     let subtitle: String?
     let conditionTags: [ConditionTag]
     let isPlaceholder: Bool
@@ -37,6 +40,9 @@ struct Spot: Identifiable {
         weather: Weather,
         wind: Wind,
         hourlyWaves: [WaveSample],
+        tide: TideSnapshot? = nil,
+        forecastSlots: [SurfForecastSlot] = [],
+        bestWindows: [SurfBestWindow] = [],
         subtitle: String? = nil,
         conditionTags: [ConditionTag] = [],
         isPlaceholder: Bool = false
@@ -50,6 +56,9 @@ struct Spot: Identifiable {
         self.weather = weather
         self.wind = wind
         self.hourlyWaves = hourlyWaves
+        self.tide = tide
+        self.forecastSlots = forecastSlots
+        self.bestWindows = bestWindows
         self.subtitle = subtitle
         self.conditionTags = conditionTags
         self.isPlaceholder = isPlaceholder
@@ -110,7 +119,7 @@ extension Spot {
     }
 
     static func subtitle(from result: SpotResult) -> String? {
-        let s = [result.country, result.breakType?.capitalized]
+        let s = [result.region ?? result.country, result.breakType?.capitalized]
             .compactMap { $0?.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
             .joined(separator: " · ")
@@ -278,6 +287,128 @@ struct WaveSample: Identifiable {
         self.periodSeconds = periodSeconds
         self.directionDegrees = directionDegrees
     }
+}
+
+struct TideSnapshot {
+    let current: TideCurrent?
+    let timeline: [TideSample]
+}
+
+struct TideCurrent {
+    let timestamp: Date
+    let seaLevelHeightMeters: Double?
+    let state: TideState
+    let nextExtreme: TideExtreme?
+}
+
+struct TideExtreme {
+    let timestamp: Date
+    let type: TideExtremeType
+    let seaLevelHeightMeters: Double?
+}
+
+struct TideSample: Identifiable {
+    let id = UUID()
+    let timestamp: Date
+    let seaLevelHeightMeters: Double?
+    let state: TideState
+}
+
+enum TideState: String {
+    case rising, falling, steady, high, low, unknown
+
+    var label: String {
+        switch self {
+        case .rising: return "Rising"
+        case .falling: return "Falling"
+        case .steady: return "Steady"
+        case .high: return "High"
+        case .low: return "Low"
+        case .unknown: return "Unknown"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .rising: return "arrow.up.right"
+        case .falling: return "arrow.down.right"
+        case .steady: return "minus"
+        case .high: return "arrow.up.to.line"
+        case .low: return "arrow.down.to.line"
+        case .unknown: return "water.waves"
+        }
+    }
+}
+
+enum TideExtremeType: String {
+    case high, low
+
+    var label: String {
+        switch self {
+        case .high: return "High"
+        case .low: return "Low"
+        }
+    }
+}
+
+struct SurfForecastSlot: Identifiable {
+    let id = UUID()
+    let startTime: Date
+    let endTime: Date
+    let partOfDay: SurfDaypart
+    let waveHeightMeters: Double?
+    let wavePeriodSeconds: Double?
+    let swellDirectionDegrees: Double?
+    let windSpeedKmh: Double?
+    let windDirectionDegrees: Double?
+    let precipitationMm: Double?
+    let weatherCode: Int?
+    let tideState: TideState
+    let score: Int
+    let verdict: SurfSlotVerdict
+}
+
+enum SurfDaypart: String {
+    case morning, midday, evening, night
+
+    var label: String {
+        switch self {
+        case .morning: return "Morning"
+        case .midday: return "Midday"
+        case .evening: return "Evening"
+        case .night: return "Night"
+        }
+    }
+}
+
+enum SurfSlotVerdict: String {
+    case go, maybe, skip
+
+    var label: String {
+        switch self {
+        case .go: return "GO"
+        case .maybe: return "MAYBE"
+        case .skip: return "SKIP"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .go: return .green
+        case .maybe: return .orange
+        case .skip: return .red
+        }
+    }
+}
+
+struct SurfBestWindow: Identifiable {
+    let id = UUID()
+    let partOfDay: SurfDaypart
+    let startTime: Date
+    let endTime: Date
+    let score: Int
+    let verdict: SurfSlotVerdict
+    let summary: String
 }
 
 // MARK: - Sample data

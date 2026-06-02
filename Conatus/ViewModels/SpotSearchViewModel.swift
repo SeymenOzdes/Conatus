@@ -15,7 +15,7 @@ final class SpotSearchViewModel {
     enum Phase: Equatable {
         case idle
         case loading
-        case results([SpotResult])
+        case results([SpotResult], matchType: SearchMatchType?)
         case empty
         case failed(String)
     }
@@ -55,12 +55,14 @@ final class SpotSearchViewModel {
             guard !Task.isCancelled else { return }
 
             do {
-                let results = try await service.search(query: trimmed, limit: 8)
+                let response = try await service.search(query: trimmed, limit: 8)
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     guard let self else { return }
                     guard self.query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed else { return }
-                    self.phase = results.isEmpty ? .empty : .results(results)
+                    self.phase = response.spots.isEmpty
+                        ? .empty
+                        : .results(response.spots, matchType: response.matchType)
                 }
             } catch {
                 guard !Task.isCancelled else { return }
@@ -73,8 +75,14 @@ final class SpotSearchViewModel {
         }
     }
 
+    func cancelSearch() {
+        searchTask?.cancel()
+        searchTask = nil
+    }
+
     func result(forID id: String) -> SpotResult? {
-        guard case let .results(items) = phase else { return nil }
+        cancelSearch()
+        guard case let .results(items, _) = phase else { return nil }
         return items.first { $0.spotId == id }
     }
 

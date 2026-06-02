@@ -143,8 +143,8 @@ struct AddSpotSheetView: View {
     private func coordinateLabel(for result: SpotResult) -> String {
         let lat = String(format: "%.4f", result.lat)
         let lng = String(format: "%.4f", result.lng)
-        if let country = result.country, !country.isEmpty {
-            return "\(country) · \(lat), \(lng)"
+        if let region = result.region ?? result.country, !region.isEmpty {
+            return "\(region) · \(lat), \(lng)"
         }
         return "\(lat), \(lng)"
     }

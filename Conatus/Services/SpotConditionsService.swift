@@ -50,16 +50,120 @@ struct SpotConditionsDTO: Decodable {
         }
     }
 
+    struct TideInfo: Decodable {
+        struct Current: Decodable {
+            let timestamp: String
+            let seaLevelHeightM: Double?
+            let state: String
+            let nextExtreme: Extreme?
+
+            enum CodingKeys: String, CodingKey {
+                case timestamp, state
+                case seaLevelHeightM = "sea_level_height_m"
+                case nextExtreme = "next_extreme"
+            }
+        }
+
+        struct Extreme: Decodable {
+            let timestamp: String
+            let type: String
+            let seaLevelHeightM: Double?
+
+            enum CodingKeys: String, CodingKey {
+                case timestamp, type
+                case seaLevelHeightM = "sea_level_height_m"
+            }
+        }
+
+        struct Sample: Decodable {
+            let timestamp: String
+            let seaLevelHeightM: Double?
+            let state: String
+
+            enum CodingKeys: String, CodingKey {
+                case timestamp, state
+                case seaLevelHeightM = "sea_level_height_m"
+            }
+        }
+
+        let current: Current?
+        let timeline: [Sample]
+    }
+
+    struct ForecastSlot: Decodable {
+        let startTimestamp: String
+        let endTimestamp: String
+        let partOfDay: String
+        let waveHeightM: Double?
+        let wavePeriodS: Double?
+        let swellDirectionDeg: Double?
+        let windSpeedKmh: Double?
+        let windDirectionDeg: Double?
+        let precipitationMm: Double?
+        let weatherCode: Int?
+        let tideState: String
+        let score: Int
+        let verdict: String
+
+        enum CodingKeys: String, CodingKey {
+            case startTimestamp = "start_timestamp"
+            case endTimestamp = "end_timestamp"
+            case partOfDay = "part_of_day"
+            case waveHeightM = "wave_height_m"
+            case wavePeriodS = "wave_period_s"
+            case swellDirectionDeg = "swell_direction_deg"
+            case windSpeedKmh = "wind_speed_kmh"
+            case windDirectionDeg = "wind_direction_deg"
+            case precipitationMm = "precipitation_mm"
+            case weatherCode = "weather_code"
+            case tideState = "tide_state"
+            case score, verdict
+        }
+    }
+
+    struct BestWindow: Decodable {
+        let partOfDay: String
+        let startTimestamp: String
+        let endTimestamp: String
+        let score: Int
+        let verdict: String
+        let summary: String
+
+        enum CodingKeys: String, CodingKey {
+            case partOfDay = "part_of_day"
+            case startTimestamp = "start_timestamp"
+            case endTimestamp = "end_timestamp"
+            case score, verdict, summary
+        }
+    }
+
     let spotId: String
     let fetchedAt: String
     let conditions: Current?
     let hourly: [Hourly]
+    let tide: TideInfo?
+    let forecastSlots: [ForecastSlot]
+    let bestWindows: [BestWindow]
     let error: String?
 
     enum CodingKeys: String, CodingKey {
         case spotId = "spot_id"
         case fetchedAt = "fetched_at"
-        case conditions, hourly, error
+        case forecastSlots = "forecast_slots"
+        case bestWindows = "best_windows"
+        case conditions, hourly, tide, error
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        spotId = try container.decode(String.self, forKey: .spotId)
+        fetchedAt = try container.decode(String.self, forKey: .fetchedAt)
+        conditions = try container.decodeIfPresent(Current.self, forKey: .conditions)
+        hourly = try container.decodeIfPresent([Hourly].self, forKey: .hourly) ?? []
+        tide = try container.decodeIfPresent(TideInfo.self, forKey: .tide)
+        forecastSlots = try container.decodeIfPresent([ForecastSlot].self, forKey: .forecastSlots) ?? []
+        bestWindows = try container.decodeIfPresent([BestWindow].self, forKey: .bestWindows) ?? []
+        error = try container.decodeIfPresent(String.self, forKey: .error)
     }
 }
 
@@ -134,36 +238,102 @@ extension SpotConditionsDTO {
             weather: weather,
             wind: wind,
             hourlyWaves: makeHourlyWaves(),
+            tide: makeTideSnapshot(),
+            forecastSlots: makeForecastSlots(),
+            bestWindows: makeBestWindows(),
             subtitle: subtitle,
             isPlaceholder: false
         )
     }
 
     private func makeHourlyWaves() -> [WaveSample] {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        let fallbackFormatter = ISO8601DateFormatter()
-        fallbackFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let localFormatter: DateFormatter = {
-            let f = DateFormatter()
-            f.calendar = Calendar(identifier: .iso8601)
-            f.locale = Locale(identifier: "en_US_POSIX")
-            f.dateFormat = "yyyy-MM-dd'T'HH:mm"
-            f.timeZone = TimeZone.current
-            return f
-        }()
-
         return hourly.prefix(12).compactMap { slot -> WaveSample? in
             guard let height = slot.waveHeightM else { return nil }
-            let date = formatter.date(from: slot.timestamp)
-                ?? fallbackFormatter.date(from: slot.timestamp)
-                ?? localFormatter.date(from: slot.timestamp)
-                ?? Date()
+            let date = parseDate(slot.timestamp) ?? Date()
             return WaveSample(
                 hour: date,
                 heightMeters: height,
                 periodSeconds: slot.wavePeriodS ?? 0,
                 directionDegrees: slot.swellDirectionDeg ?? 0
+            )
+        }
+    }
+
+    private func makeTideSnapshot() -> TideSnapshot? {
+        guard let tide else { return nil }
+
+        let current = tide.current.flatMap { dto -> TideCurrent? in
+            guard let date = parseDate(dto.timestamp) else { return nil }
+            return TideCurrent(
+                timestamp: date,
+                seaLevelHeightMeters: dto.seaLevelHeightM,
+                state: TideState(rawValue: dto.state) ?? .unknown,
+                nextExtreme: dto.nextExtreme.flatMap(makeTideExtreme)
+            )
+        }
+
+        let timeline = tide.timeline.compactMap { sample -> TideSample? in
+            guard let date = parseDate(sample.timestamp) else { return nil }
+            return TideSample(
+                timestamp: date,
+                seaLevelHeightMeters: sample.seaLevelHeightM,
+                state: TideState(rawValue: sample.state) ?? .unknown
+            )
+        }
+
+        guard current != nil || !timeline.isEmpty else { return nil }
+        return TideSnapshot(current: current, timeline: timeline)
+    }
+
+    private func makeTideExtreme(_ dto: SpotConditionsDTO.TideInfo.Extreme) -> TideExtreme? {
+        guard let date = parseDate(dto.timestamp),
+              let type = TideExtremeType(rawValue: dto.type) else {
+            return nil
+        }
+        return TideExtreme(
+            timestamp: date,
+            type: type,
+            seaLevelHeightMeters: dto.seaLevelHeightM
+        )
+    }
+
+    private func makeForecastSlots() -> [SurfForecastSlot] {
+        forecastSlots.compactMap { slot -> SurfForecastSlot? in
+            guard let start = parseDate(slot.startTimestamp),
+                  let end = parseDate(slot.endTimestamp) else {
+                return nil
+            }
+            return SurfForecastSlot(
+                startTime: start,
+                endTime: end,
+                partOfDay: SurfDaypart(rawValue: slot.partOfDay) ?? .night,
+                waveHeightMeters: slot.waveHeightM,
+                wavePeriodSeconds: slot.wavePeriodS,
+                swellDirectionDegrees: slot.swellDirectionDeg,
+                windSpeedKmh: slot.windSpeedKmh,
+                windDirectionDegrees: slot.windDirectionDeg,
+                precipitationMm: slot.precipitationMm,
+                weatherCode: slot.weatherCode,
+                tideState: TideState(rawValue: slot.tideState) ?? .unknown,
+                score: slot.score,
+                verdict: SurfSlotVerdict(rawValue: slot.verdict) ?? .skip
+            )
+        }
+    }
+
+    private func makeBestWindows() -> [SurfBestWindow] {
+        bestWindows.compactMap { window -> SurfBestWindow? in
+            guard let start = parseDate(window.startTimestamp),
+                  let end = parseDate(window.endTimestamp) else {
+                return nil
+            }
+            return SurfBestWindow(
+                partOfDay: SurfDaypart(rawValue: window.partOfDay) ?? .night,
+                startTime: start,
+                endTime: end,
+                score: window.score,
+                verdict: SurfSlotVerdict(rawValue: window.verdict) ?? .skip,
+                summary: window.summary
             )
         }
     }
@@ -179,5 +349,23 @@ extension SpotConditionsDTO {
         default: return .clear
         }
     }
-}
 
+    private func parseDate(_ string: String) -> Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        let fallbackFormatter = ISO8601DateFormatter()
+        fallbackFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let localFormatter: DateFormatter = {
+            let f = DateFormatter()
+            f.calendar = Calendar(identifier: .iso8601)
+            f.locale = Locale(identifier: "en_US_POSIX")
+            f.dateFormat = "yyyy-MM-dd'T'HH:mm"
+            f.timeZone = TimeZone.current
+            return f
+        }()
+
+        return formatter.date(from: string)
+            ?? fallbackFormatter.date(from: string)
+            ?? localFormatter.date(from: string)
+    }
+}

@@ -60,7 +60,7 @@ def _normalize(name: str) -> str:
 
 async def geocode_place(name: str) -> tuple[float, float] | None:
     key = _normalize(name)
-    if not key:
+    if len(key) < 3:
         return None
 
     now = time.monotonic()

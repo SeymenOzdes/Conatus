@@ -14,6 +14,7 @@ struct SuggestionRow: Identifiable, Hashable {
     let symbol: String
     let tint: Color
     let distanceM: Int?
+    let nearestOnly: Bool
 
     init(
         id: String,
@@ -21,7 +22,8 @@ struct SuggestionRow: Identifiable, Hashable {
         subtitle: String?,
         symbol: String,
         tint: Color,
-        distanceM: Int? = nil
+        distanceM: Int? = nil,
+        nearestOnly: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -29,13 +31,14 @@ struct SuggestionRow: Identifiable, Hashable {
         self.symbol = symbol
         self.tint = tint
         self.distanceM = distanceM
+        self.nearestOnly = nearestOnly
     }
 }
 
 struct SearchSuggestionsView: View {
     private enum Content {
         case loading
-        case rows([SuggestionRow])
+        case rows([SuggestionRow], matchType: SearchMatchType?)
         case empty
         case failed(String)
     }
@@ -51,22 +54,22 @@ struct SearchSuggestionsView: View {
     ) {
         switch phase {
         case .idle:
-            self.content = .rows([])
+            self.content = .rows([], matchType: nil)
         case .loading:
             self.content = .loading
         case .empty:
             self.content = .empty
         case .failed(let message):
             self.content = .failed(message)
-        case .results(let results):
-            self.content = .rows(results.map(SuggestionRow.init(result:)))
+        case .results(let results, let matchType):
+            self.content = .rows(results.map(SuggestionRow.init(result:)), matchType: matchType)
         }
         self.query = query
         self.onSelect = onSelect
     }
 
     init(rows: [SuggestionRow], onSelect: @escaping (String) -> Void) {
-        self.content = .rows(rows)
+        self.content = .rows(rows, matchType: nil)
         self.query = ""
         self.onSelect = onSelect
     }
@@ -81,7 +84,7 @@ struct SearchSuggestionsView: View {
                 tint: spot.tint
             )
         }
-        self.content = .rows(rows)
+        self.content = .rows(rows, matchType: nil)
         self.query = ""
         self.onSelect = { id in
             guard let spot = spots.first(where: { $0.id.uuidString == id }) else { return }
@@ -117,18 +120,18 @@ struct SearchSuggestionsView: View {
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
-            case .rows(let rows):
+            case .rows(let rows, let matchType):
                 if rows.isEmpty {
                     EmptyView()
                 } else {
-                    rowList(rows)
+                    rowList(rows, matchType: matchType)
                 }
             }
         }
     }
 
-    private func rowList(_ rows: [SuggestionRow]) -> some View {
-        let nearCityLabel = geocodeHeaderLabel(for: rows)
+    private func rowList(_ rows: [SuggestionRow], matchType: SearchMatchType?) -> some View {
+        let nearCityLabel = geocodeHeaderLabel(matchType: matchType)
 
         return VStack(spacing: 0) {
             if let nearCityLabel {
@@ -162,13 +165,18 @@ struct SearchSuggestionsView: View {
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    private func geocodeHeaderLabel(for rows: [SuggestionRow]) -> String? {
+    private func geocodeHeaderLabel(matchType: SearchMatchType?) -> String? {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !rows.isEmpty,
-              !trimmed.isEmpty,
-              rows.allSatisfy({ $0.distanceM != nil })
-        else { return nil }
-        return "Spots near \(trimmed)"
+        switch matchType {
+        case .geocode:
+            return trimmed.isEmpty ? "Nearby spots" : "Spots near \(trimmed)"
+        case .geo:
+            return trimmed.isEmpty ? "Nearby spots" : "Spots near \(trimmed)"
+        case .nearest:
+            return trimmed.isEmpty ? "Nearest spot" : "Nearest spot to \(trimmed)"
+        case .text, .none:
+            return nil
+        }
     }
 
     private func headerRow(text: String) -> some View {
@@ -203,7 +211,7 @@ struct SearchSuggestionsView: View {
                 Text(row.name)
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(.primary)
-                if let subtitle = row.subtitle, !subtitle.isEmpty {
+                if let subtitle = subtitleText(for: row) {
                     Text(subtitle)
                         .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(.secondary)
@@ -240,6 +248,18 @@ struct SearchSuggestionsView: View {
         return "\(Int(km.rounded())) km"
     }
 
+    private func subtitleText(for row: SuggestionRow) -> String? {
+        var parts: [String] = []
+        if row.nearestOnly {
+            parts.append("Nearest spot")
+        }
+        if let subtitle = row.subtitle, !subtitle.isEmpty {
+            parts.append(subtitle)
+        }
+        let text = parts.joined(separator: " · ")
+        return text.isEmpty ? nil : text
+    }
+
     @ViewBuilder
     private func statusRow<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         HStack(spacing: 10) {
@@ -262,7 +282,7 @@ private struct SuggestionRowButtonStyle: ButtonStyle {
 
 private extension SuggestionRow {
     init(result: SpotResult) {
-        let subtitle = [result.country, result.breakType?.capitalized]
+        let subtitle = [result.region ?? result.country, result.breakType?.capitalized]
             .compactMap { $0?.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
             .joined(separator: " · ")
@@ -272,7 +292,8 @@ private extension SuggestionRow {
             subtitle: subtitle.isEmpty ? nil : subtitle,
             symbol: Self.symbol(for: result.breakType),
             tint: Self.tint(for: result.breakType),
-            distanceM: result.distanceM
+            distanceM: result.distanceM,
+            nearestOnly: result.nearestOnly ?? false
         )
     }
 

@@ -37,6 +37,18 @@ ORDER BY distance_m ASC
 LIMIT $4;
 """
 
+_NEAREST_SQL = """
+SELECT
+  id, name, lat, lng, region,
+  ST_Distance(
+    location,
+    ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography
+  )::int AS distance_m
+FROM surf_spots_v2
+ORDER BY distance_m ASC
+LIMIT $3;
+"""
+
 
 async def get_spot_by_id(pool: asyncpg.Pool, spot_id: str) -> dict | None:
     async with pool.acquire() as conn:
@@ -63,6 +75,7 @@ async def search_by_text(pool: asyncpg.Pool, q: str, limit: int) -> list[SpotRes
             lng=r["lng"],
             break_type=None,
             country=r["region"],
+            region=r["region"],
         )
         for r in rows
     ]
@@ -85,7 +98,32 @@ async def search_by_geo(
             lng=r["lng"],
             break_type=None,
             country=r["region"],
+            region=r["region"],
             distance_m=r["distance_m"],
+        )
+        for r in rows
+    ]
+
+
+async def search_nearest(
+    pool: asyncpg.Pool,
+    lat: float,
+    lng: float,
+    limit: int,
+) -> list[SpotResult]:
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(_NEAREST_SQL, lat, lng, limit)
+    return [
+        SpotResult(
+            spot_id=r["id"],
+            name=r["name"],
+            lat=r["lat"],
+            lng=r["lng"],
+            break_type=None,
+            country=r["region"],
+            region=r["region"],
+            distance_m=r["distance_m"],
+            nearest_only=True,
         )
         for r in rows
     ]

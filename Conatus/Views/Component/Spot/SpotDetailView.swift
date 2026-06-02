@@ -27,9 +27,14 @@ struct SpotDetailView: View {
             VStack(alignment: .leading, spacing: 24) {
                 header
                 SpotDetailMetricsRow(spot: spot)
-                SpotWaveHeroCard(spot: spot)
+                SpotForecastOverviewCard(spot: spot)
+                SpotForecastSlotsCard(spot: spot)
                 SpotDetailSecondaryStatsGrid(spot: spot)
-                SpotDetailRecommendationSection(spot: spot, phase: summarizer.phase)
+                SpotDetailRecommendationSection(
+                    spot: spot,
+                    phase: summarizer.phase,
+                    onRefresh: refreshRecommendation
+                )
                     .overlay {
                         if isRecommendationLoading {
                             aiRecommendationLoadingOverlay
@@ -68,6 +73,10 @@ struct SpotDetailView: View {
 
     private var isRecommendationLoading: Bool {
         summarizer.phase == .loading
+    }
+
+    private func refreshRecommendation() {
+        Task { await summarizer.generate(for: spot) }
     }
 
     private var aiRecommendationLoadingOverlay: some View {

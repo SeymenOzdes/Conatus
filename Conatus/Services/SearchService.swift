@@ -1,5 +1,12 @@
 import Foundation
 
+enum SearchMatchType: String, Decodable, Equatable {
+    case text
+    case geo
+    case geocode
+    case nearest
+}
+
 struct SpotResult: Decodable, Identifiable, Hashable {
     let spotId: String
     let name: String
@@ -7,7 +14,9 @@ struct SpotResult: Decodable, Identifiable, Hashable {
     let lng: Double
     let breakType: String?
     let country: String?
+    let region: String?
     let distanceM: Int?
+    let nearestOnly: Bool?
 
     var id: String { spotId }
 
@@ -15,13 +24,20 @@ struct SpotResult: Decodable, Identifiable, Hashable {
         case spotId = "spot_id"
         case name, lat, lng
         case breakType = "break_type"
-        case country
+        case country, region
         case distanceM = "distance_m"
+        case nearestOnly = "nearest_only"
     }
 }
 
-private struct SearchResponseDTO: Decodable {
+struct SpotSearchResponse: Decodable, Equatable {
     let spots: [SpotResult]
+    let matchType: SearchMatchType?
+
+    enum CodingKeys: String, CodingKey {
+        case spots
+        case matchType = "match_type"
+    }
 }
 
 enum SearchServiceError: Error {
@@ -40,7 +56,7 @@ struct SearchService {
         self.session = session
     }
 
-    func search(query: String, limit: Int = 10) async throws -> [SpotResult] {
+    func search(query: String, limit: Int = 10) async throws -> SpotSearchResponse {
         try await fetch(items: [
             URLQueryItem(name: "q", value: query),
             URLQueryItem(name: "limit", value: String(limit)),
@@ -50,7 +66,7 @@ struct SearchService {
     func searchNearby(lat: Double,
                       lng: Double,
                       radiusMeters: Int = 30_000,
-                      limit: Int = 10) async throws -> [SpotResult] {
+                      limit: Int = 10) async throws -> SpotSearchResponse {
         try await fetch(items: [
             URLQueryItem(name: "lat", value: String(lat)),
             URLQueryItem(name: "lng", value: String(lng)),
@@ -59,7 +75,7 @@ struct SearchService {
         ])
     }
 
-    private func fetch(items: [URLQueryItem]) async throws -> [SpotResult] {
+    private func fetch(items: [URLQueryItem]) async throws -> SpotSearchResponse {
         var components = URLComponents(
             url: Self.baseURL.appendingPathComponent("/v1/spots/search"),
             resolvingAgainstBaseURL: false
@@ -83,7 +99,7 @@ struct SearchService {
         }
 
         do {
-            return try JSONDecoder().decode(SearchResponseDTO.self, from: data).spots
+            return try JSONDecoder().decode(SpotSearchResponse.self, from: data)
         } catch {
             throw SearchServiceError.decoding(error)
         }

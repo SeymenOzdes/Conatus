@@ -11,11 +11,13 @@ import MapKit
 
 final class SpotAnnotation: NSObject, MKAnnotation {
     let spot: Spot
+    let searchResult: SpotResult?
     var coordinate: CLLocationCoordinate2D { spot.coordinate }
     var title: String? { spot.name }
 
-    nonisolated init(spot: Spot) {
+    nonisolated init(spot: Spot, searchResult: SpotResult? = nil) {
         self.spot = spot
+        self.searchResult = searchResult
     }
 }
 
@@ -26,6 +28,7 @@ final class SpotMapView: MKMapView {
     // MARK: - Callbacks
 
     var onSpotSelected: ((Spot) -> Void)?
+    var onSearchResultSelected: ((SpotResult) -> Void)?
     var onSpotDeselected: (() -> Void)?
 
     // MARK: - Init
@@ -60,7 +63,7 @@ final class SpotMapView: MKMapView {
             animated: false
         )
 
-        addAnnotations(Spot.samples.map(SpotAnnotation.init(spot:)))
+        addAnnotations(Spot.samples.map { SpotAnnotation(spot: $0) })
     }
 }
 
@@ -81,8 +84,12 @@ extension SpotMapView: MKMapViewDelegate {
     }
 
     func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
-        guard let spot = (view.annotation as? SpotAnnotation)?.spot else { return }
-        onSpotSelected?(spot)
+        guard let annotation = view.annotation as? SpotAnnotation else { return }
+        if let result = annotation.searchResult {
+            onSearchResultSelected?(result)
+        } else {
+            onSpotSelected?(annotation.spot)
+        }
     }
 
     func mapView(_ mapView: MKMapView, didDeselect view: MKAnnotationView) {

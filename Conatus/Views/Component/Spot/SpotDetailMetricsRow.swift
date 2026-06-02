@@ -22,10 +22,12 @@ struct SpotDetailMetricsRow: View {
                 )
                 WindChip(wind: spot.wind, tint: spot.tint)
                 WaveHeightChip(height: spot.currentWaveHeight, tint: spot.tint, label: "Wave")
+                if let tide = spot.tide {
+                    TideChip(tide: tide, tint: spot.tint)
+                }
             }
             .padding(.horizontal, 2)
             .padding(.vertical, 4)
         }
     }
 }
-

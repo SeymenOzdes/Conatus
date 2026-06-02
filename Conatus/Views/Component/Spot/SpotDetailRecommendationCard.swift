@@ -10,6 +10,7 @@ import SwiftUI
 struct SpotDetailRecommendationSection: View {
     let spot: Spot
     let phase: WeatherSummarizeGenerator.Phase
+    var onRefresh: () -> Void
 
     var body: some View {
         content
@@ -21,11 +22,11 @@ struct SpotDetailRecommendationSection: View {
         if spot.isPlaceholder || spot.hourlyWaves.isEmpty {
             recommendationCard(
                 title: "AI surf call",
-                subtitle: "Conditions unavailable",
                 stateIcon: "exclamationmark.triangle",
                 recommendation: SurfRecommendation.unavailable,
                 tone: .secondary,
-                showsReasons: false
+                showsReasons: false,
+                allowsRefresh: false
             )
         } else {
             switch phase {
@@ -34,7 +35,6 @@ struct SpotDetailRecommendationSection: View {
             case .ready(let recommendation):
                 recommendationCard(
                     title: "AI surf call",
-                    subtitle: "Next 12 hours",
                     stateIcon: "sparkles",
                     recommendation: recommendation,
                     tone: verdictColor(recommendation.verdict)
@@ -43,7 +43,6 @@ struct SpotDetailRecommendationSection: View {
             case .unavailable(let recommendation):
                 recommendationCard(
                     title: "AI surf call",
-                    subtitle: "Local fallback",
                     stateIcon: "wifi.slash",
                     recommendation: recommendation,
                     tone: .secondary
@@ -52,7 +51,6 @@ struct SpotDetailRecommendationSection: View {
             case .failed(let recommendation):
                 recommendationCard(
                     title: "AI surf call",
-                    subtitle: "AI fallback",
                     stateIcon: "exclamationmark.triangle",
                     recommendation: recommendation,
                     tone: .orange
@@ -65,10 +63,10 @@ struct SpotDetailRecommendationSection: View {
     private var loadingRecommendationCard: some View {
         recommendationCard(
             title: "AI surf call",
-            subtitle: "Analyzing forecast",
             stateIcon: "sparkles",
             recommendation: SurfRecommendation.loading,
-            tone: spot.tint
+            tone: spot.tint,
+            allowsRefresh: false
         )
         .redacted(reason: .placeholder)
         .accessibilityLabel("AI surf call analyzing forecast")
@@ -76,11 +74,11 @@ struct SpotDetailRecommendationSection: View {
 
     private func recommendationCard(
         title: String,
-        subtitle: String,
         stateIcon: String,
         recommendation: SurfRecommendation,
         tone: Color,
-        showsReasons: Bool = true
+        showsReasons: Bool = true,
+        allowsRefresh: Bool = true
     ) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .center, spacing: 10) {
@@ -94,14 +92,11 @@ struct SpotDetailRecommendationSection: View {
                     Text(title)
                         .font(.headline.weight(.semibold))
                         .foregroundStyle(.primary)
-                    Text(subtitle)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
                 }
 
                 Spacer(minLength: 8)
 
-                verdictPill(recommendation.verdict, color: verdictColor(recommendation.verdict))
+                refreshButton(tone: tone, isEnabled: allowsRefresh)
             }
 
             VStack(alignment: .leading, spacing: 12) {
@@ -119,6 +114,8 @@ struct SpotDetailRecommendationSection: View {
                     )
                 }
                 .fixedSize(horizontal: false, vertical: true)
+
+                Divider()
 
                 Text(recommendation.summary)
                     .font(.subheadline)
@@ -160,19 +157,28 @@ struct SpotDetailRecommendationSection: View {
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabel(for: recommendation, subtitle: subtitle))
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(tone.opacity(0.75))
+                .frame(width: 3)
+                .padding(.vertical, 18)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(accessibilityLabel(for: recommendation))
     }
 
-    private func verdictPill(_ verdict: SurfVerdict, color: Color) -> some View {
-        Text(verdict.rawValue)
-            .font(.caption.weight(.bold))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(color.opacity(0.16), in: Capsule())
-            .foregroundStyle(color)
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
+    private func refreshButton(tone: Color, isEnabled: Bool) -> some View {
+        Button(action: onRefresh) {
+            Image(systemName: "arrow.clockwise")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(isEnabled ? tone : .secondary)
+                .frame(width: 28, height: 28)
+                .contentShape(.circle)
+                .glassEffect(.regular.interactive(), in: .circle)
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .accessibilityLabel("Refresh AI surf call")
     }
 
     private func recommendationMetric(symbol: String, label: String, value: String) -> some View {
@@ -191,11 +197,10 @@ struct SpotDetailRecommendationSection: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func accessibilityLabel(for recommendation: SurfRecommendation, subtitle: String) -> String {
+    private func accessibilityLabel(for recommendation: SurfRecommendation) -> String {
         let reasons = recommendation.reasons.prefix(3).joined(separator: ". ")
         return [
             "AI surf call",
-            subtitle,
             "Verdict \(recommendation.verdict.rawValue)",
             "Best window \(recommendation.bestWindow)",
             "Confidence \(recommendation.confidence.rawValue)",
@@ -215,4 +220,3 @@ struct SpotDetailRecommendationSection: View {
         }
     }
 }
-

@@ -112,6 +112,36 @@ struct WaveHeightChip: View {
     }
 }
 
+struct TideChip: View {
+    let tide: TideSnapshot
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: tide.current?.state.systemImage ?? "water.waves")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(tint)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(tide.current?.state.label ?? "Unknown")
+                    .font(.system(size: 17, weight: .semibold))
+                Text(heightLabel)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .glassEffect(.regular, in: .capsule)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Tide \(tide.current?.state.label ?? "unknown"), \(heightLabel)")
+    }
+
+    private var heightLabel: String {
+        guard let height = tide.current?.seaLevelHeightMeters else { return "Tide" }
+        return String(format: "%.2f m MSL", height)
+    }
+}
+
 fileprivate func compass(_ degrees: Double) -> String {
     let points = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
     let normalized = (degrees.truncatingRemainder(dividingBy: 360) + 360)

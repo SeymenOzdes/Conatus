@@ -60,7 +60,7 @@ final class AddSpotPresenter {
             latitude: result.lat,
             longitude: result.lng,
             breakType: result.breakType ?? "",
-            country: result.country,
+            country: result.region ?? result.country,
             createdAt: Date()
         )
     }

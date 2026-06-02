@@ -129,6 +129,9 @@ final class SpotViewController: UIViewController {
         mapView.onSpotSelected = { [weak self] spot in
             self?.detailPresenter.select(spot)
         }
+        mapView.onSearchResultSelected = { [weak self] result in
+            self?.detailPresenter.select(result)
+        }
         mapView.onSpotDeselected = { [weak self] in
             self?.detailPresenter.select(nil)
         }
@@ -184,7 +187,7 @@ final class SpotViewController: UIViewController {
 
     private func installUserSpotsOnMap() {
         let spots = UserSpotsRepository.shared.spots.map(Spot.placeholder(from:))
-        let annotations = spots.map(SpotAnnotation.init(spot:))
+        let annotations = spots.map { SpotAnnotation(spot: $0) }
         mapView.addAnnotations(annotations)
     }
 
@@ -203,7 +206,7 @@ final class SpotViewController: UIViewController {
             .filter { !knownIDs.contains($0.id) }
             .map(Spot.placeholder(from:))
         guard !newSpots.isEmpty else { return }
-        mapView.addAnnotations(newSpots.map(SpotAnnotation.init(spot:)))
+        mapView.addAnnotations(newSpots.map { SpotAnnotation(spot: $0) })
 
         // Pan to the newest spot so the user sees the result of the action.
         if let last = newSpots.last {
@@ -220,13 +223,35 @@ final class SpotViewController: UIViewController {
         let coordinate = CLLocationCoordinate2D(latitude: result.lat, longitude: result.lng)
         mapView.setCenter(coordinate, animated: true)
 
-        if let annotation = mapView.annotations
-            .compactMap({ $0 as? SpotAnnotation })
-            .first(where: { $0.spot.name == result.name }) {
-            mapView.selectAnnotation(annotation, animated: true)
-        } else {
+        let annotation = annotation(for: result) ?? addSearchResultAnnotation(result)
+        let wasSelected = mapView.selectedAnnotations.contains {
+            ($0 as? SpotAnnotation) === annotation
+        }
+        mapView.selectAnnotation(annotation, animated: true)
+        if wasSelected {
             detailPresenter.select(result)
         }
+    }
+
+    private func annotation(for result: SpotResult) -> SpotAnnotation? {
+        mapView.annotations
+            .compactMap { $0 as? SpotAnnotation }
+            .first { annotation in
+                if annotation.searchResult?.spotId == result.spotId {
+                    return true
+                }
+                return annotation.spot.name == result.name
+                    && annotation.spot.coordinate.isClose(to: result.coordinate)
+            }
+    }
+
+    private func addSearchResultAnnotation(_ result: SpotResult) -> SpotAnnotation {
+        let annotation = SpotAnnotation(
+            spot: Spot.placeholder(from: result),
+            searchResult: result
+        )
+        mapView.addAnnotation(annotation)
+        return annotation
     }
 
     func deselectAllSpots() {
@@ -234,5 +259,18 @@ final class SpotViewController: UIViewController {
         for annotation in mapView.selectedAnnotations {
             mapView.deselectAnnotation(annotation, animated: true)
         }
+    }
+}
+
+private extension SpotResult {
+    var coordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: lat, longitude: lng)
+    }
+}
+
+private extension CLLocationCoordinate2D {
+    func isClose(to other: CLLocationCoordinate2D) -> Bool {
+        abs(latitude - other.latitude) < 0.0001
+            && abs(longitude - other.longitude) < 0.0001
     }
 }
