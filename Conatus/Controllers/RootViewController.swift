@@ -98,9 +98,21 @@ final class RootViewController: UIViewController {
         installAddSheet()
         installStartSessionBackdrop()
         installStartSessionSheet()
+        wireDetailPresenter()
         wireAddSpotPresenter()
         wireStartSessionPresenter()
         show(tab: .home)
+    }
+
+    private func wireDetailPresenter() {
+        detailPresenter.onSelectionChange = { [weak self] spot in
+            guard let self else { return }
+            if spot != nil {
+                self.setTabBarHidden(true, animated: true)
+            } else if !self.startSessionPresenter.isPresented {
+                self.setTabBarHidden(false, animated: true)
+            }
+        }
     }
 
     private func wireAddSpotPresenter() {
@@ -208,12 +220,13 @@ final class RootViewController: UIViewController {
         addChild(detailHost)
         let sheet = detailHost.view!
         sheet.translatesAutoresizingMaskIntoConstraints = false
-        // Insert above the tab bar so the sheet floats over it in z-order.
+        // Insert above the tab bar in z-order, but anchor to the screen bottom
+        // because the tab bar is hidden while the detail sheet is open.
         view.addSubview(sheet)
         NSLayoutConstraint.activate([
             sheet.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             sheet.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            sheet.bottomAnchor.constraint(equalTo: tabBarHost.view.topAnchor, constant: -8),
+            sheet.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
         detailHost.didMove(toParent: self)
     }
@@ -292,10 +305,7 @@ final class RootViewController: UIViewController {
     }
 
     private static func resolvePinnedSpots() -> [Spot] {
-        let prefs = UserPreferences.current
-        return prefs.pinnedSpotIDs.compactMap { id in
-            Spot.samples.first(where: { $0.id == id })
-        }
+        FavoriteSpotsResolver.pinnedSpots()
     }
 
     private func presentExpandedDetail() {

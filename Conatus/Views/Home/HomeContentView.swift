@@ -33,11 +33,7 @@ final class HomeViewModel {
     }
 
     private static func resolveFavoriteSpots() -> [Spot] {
-        let prefs = UserPreferences.current
-        let pinned = prefs.pinnedSpotIDs.compactMap { id in
-            Spot.samples.first(where: { $0.id == id })
-        }
-        return pinned.isEmpty ? Array(Spot.samples.prefix(3)) : pinned
+        FavoriteSpotsResolver.homeFavoriteSpots()
     }
 }
 

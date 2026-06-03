@@ -10,12 +10,14 @@ import SwiftUI
 @Observable
 final class SpotDetailPresenter {
     var selectedSpot: Spot?
+    var onSelectionChange: ((Spot?) -> Void)?
     let summarizer = WeatherSummarizeGenerator()
     private let conditionsService = SpotConditionsService()
     private var conditionsTask: Task<Void, Never>?
 
     func select(_ spot: Spot?) {
         selectedSpot = spot
+        onSelectionChange?(spot)
         guard let spot else {
             conditionsTask?.cancel()
             conditionsTask = nil

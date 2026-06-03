@@ -72,3 +72,16 @@ extension UserPreferences {
         UserDefaults.standard.set(hasCompletedOnboarding, forKey: Self.onboardingFlagKey)
     }
 }
+
+enum FavoriteSpotsResolver {
+    static func pinnedSpots(preferences: UserPreferences = .current) -> [Spot] {
+        preferences.pinnedSpotIDs.compactMap { id in
+            Spot.samples.first(where: { $0.id == id })
+        }
+    }
+
+    static func homeFavoriteSpots(preferences: UserPreferences = .current) -> [Spot] {
+        let pinned = pinnedSpots(preferences: preferences)
+        return pinned.isEmpty ? Array(Spot.samples.prefix(3)) : pinned
+    }
+}

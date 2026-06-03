@@ -201,7 +201,7 @@ final class SpotViewController: UIViewController {
 
     private func handleUserSpotsChanged(_ userSpots: [UserSpot]) {
         startupMapTask?.cancel()
-        if !renderUserSpotsIfAvailable(userSpots, animated: true) {
+        if !renderPreferredStartupContent(animated: true) {
             loadStartupMapContent()
         }
     }
@@ -211,7 +211,7 @@ final class SpotViewController: UIViewController {
     private func loadStartupMapContent() {
         startupMapTask?.cancel()
 
-        if renderUserSpotsIfAvailable(UserSpotsRepository.shared.spots, animated: false) {
+        if renderPreferredStartupContent(animated: false) {
             return
         }
 
@@ -227,7 +227,7 @@ final class SpotViewController: UIViewController {
                 return
             }
 
-            guard !Task.isCancelled, UserSpotsRepository.shared.spots.isEmpty else { return }
+            guard !Task.isCancelled, !hasPreferredStartupContent else { return }
             mapView.center(on: coordinate, animated: false)
 
             do {
@@ -236,7 +236,7 @@ final class SpotViewController: UIViewController {
                     lng: coordinate.longitude,
                     limit: 20
                 )
-                guard !Task.isCancelled, UserSpotsRepository.shared.spots.isEmpty else { return }
+                guard !Task.isCancelled, !hasPreferredStartupContent else { return }
                 if response.spots.isEmpty {
                     mapView.renderDefaultSpots(animated: true)
                 } else {
@@ -250,15 +250,29 @@ final class SpotViewController: UIViewController {
     }
 
     @discardableResult
-    private func renderUserSpotsIfAvailable(_ userSpots: [UserSpot], animated: Bool) -> Bool {
+    private func renderPreferredStartupContent(animated: Bool) -> Bool {
+        let pinnedSpots = FavoriteSpotsResolver.pinnedSpots()
+        if !pinnedSpots.isEmpty {
+            mapView.renderSavedSpots(pinnedSpots, animated: animated)
+            return true
+        }
+
+        return renderLocalUserSpotsIfAvailable(UserSpotsRepository.shared.spots, animated: animated)
+    }
+
+    private var hasPreferredStartupContent: Bool {
+        !FavoriteSpotsResolver.pinnedSpots().isEmpty || !UserSpotsRepository.shared.spots.isEmpty
+    }
+
+    @discardableResult
+    private func renderLocalUserSpotsIfAvailable(_ userSpots: [UserSpot], animated: Bool) -> Bool {
         guard !userSpots.isEmpty else { return false }
         mapView.renderSavedSpots(userSpots.map(Spot.placeholder(from:)), animated: animated)
         return true
     }
 
     private func renderDefaultSpotsIfStillNeeded(animated: Bool) {
-        guard UserSpotsRepository.shared.spots.isEmpty else {
-            _ = renderUserSpotsIfAvailable(UserSpotsRepository.shared.spots, animated: animated)
+        guard !renderPreferredStartupContent(animated: animated) else {
             return
         }
         mapView.renderDefaultSpots(animated: animated)
