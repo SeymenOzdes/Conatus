@@ -267,16 +267,16 @@ final class SpotViewController: UIViewController {
     // MARK: - Actions
 
     private func selectFromSearchResult(_ result: SpotResult) {
-        searchVM.query = result.name
+        startupMapTask?.cancel()
+        startupMapTask = nil
+        searchVM.finishSelection(with: result.name)
         view.endEditing(true)
-
-        let coordinate = CLLocationCoordinate2D(latitude: result.lat, longitude: result.lng)
-        mapView.setCenter(coordinate, animated: true)
 
         let annotation = annotation(for: result) ?? addSearchResultAnnotation(result)
         let wasSelected = mapView.selectedAnnotations.contains {
             ($0 as? SpotAnnotation) === annotation
         }
+        mapView.center(on: result.coordinate, animated: true)
         mapView.selectAnnotation(annotation, animated: true)
         if wasSelected {
             detailPresenter.select(result)

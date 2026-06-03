@@ -80,6 +80,12 @@ final class SpotSearchViewModel {
         searchTask = nil
     }
 
+    func finishSelection(with query: String) {
+        cancelSearch()
+        self.query = query
+        phase = .idle
+    }
+
     func result(forID id: String) -> SpotResult? {
         cancelSearch()
         guard case let .results(items, _) = phase else { return nil }
