@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import CoreLocation
 import Observation
 
 @MainActor
@@ -21,12 +22,14 @@ final class AddSpotPresenter {
     // Form state
     var name: String = ""
     var pickedResult: SpotResult?
+    var mapCenterCoordinate: CLLocationCoordinate2D?
 
     // Reuse the existing search pipeline for location picking.
     let searchVM = SpotSearchViewModel()
 
     var canSave: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty && pickedResult != nil
+        !name.trimmingCharacters(in: .whitespaces).isEmpty
+            && (pickedResult != nil || mapCenterCoordinate != nil)
     }
 
     func present() {
@@ -52,15 +55,34 @@ final class AddSpotPresenter {
         searchVM.query = ""
     }
 
+    func updateMapCenterCoordinate(_ coordinate: CLLocationCoordinate2D) {
+        mapCenterCoordinate = coordinate
+    }
+
     func buildUserSpot() -> UserSpot? {
-        guard canSave, let result = pickedResult else { return nil }
+        let trimmedName = name.trimmingCharacters(in: .whitespaces)
+        guard canSave, !trimmedName.isEmpty else { return nil }
+
+        if let result = pickedResult {
+            return UserSpot(
+                id: UUID(),
+                name: trimmedName,
+                latitude: result.lat,
+                longitude: result.lng,
+                breakType: result.breakType ?? "",
+                country: result.region ?? result.country,
+                createdAt: Date()
+            )
+        }
+
+        guard let coordinate = mapCenterCoordinate else { return nil }
         return UserSpot(
             id: UUID(),
-            name: name.trimmingCharacters(in: .whitespaces),
-            latitude: result.lat,
-            longitude: result.lng,
-            breakType: result.breakType ?? "",
-            country: result.region ?? result.country,
+            name: trimmedName,
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+            breakType: "",
+            country: nil,
             createdAt: Date()
         )
     }
@@ -68,6 +90,7 @@ final class AddSpotPresenter {
     private func reset() {
         name = ""
         pickedResult = nil
+        mapCenterCoordinate = nil
         searchVM.query = ""
     }
 }

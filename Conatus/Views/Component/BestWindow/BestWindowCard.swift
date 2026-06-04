@@ -89,7 +89,7 @@ struct BestWindowEmptyCard: View {
             Text("Forecast unavailable")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(.white)
-            Text("Once forecast data syncs, your best window appears here.")
+            Text("Live forecast data is not available for your pinned spots right now.")
                 .font(.system(size: 14))
                 .foregroundStyle(.white.opacity(0.7))
                 .multilineTextAlignment(.center)
@@ -100,6 +100,58 @@ struct BestWindowEmptyCard: View {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .fill(Color.white.opacity(0.08))
         )
+    }
+}
+
+struct BestWindowLoadingCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(spacing: 12) {
+                ProgressView()
+                    .tint(.white)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Checking live forecasts")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text("Finding the best window for your pinned spots.")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+            }
+
+            HStack(spacing: 12) {
+                placeholderTile(width: nil)
+                placeholderTile(width: nil)
+                placeholderTile(width: nil)
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, minHeight: 200, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color.white.opacity(0.10))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
+        )
+    }
+
+    private func placeholderTile(width: CGFloat?) -> some View {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(Color.white.opacity(0.08))
+            .frame(maxWidth: width ?? .infinity, minHeight: 74)
+            .overlay(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Capsule()
+                        .fill(Color.white.opacity(0.18))
+                        .frame(width: 28, height: 8)
+                    Capsule()
+                        .fill(Color.white.opacity(0.14))
+                        .frame(width: 46, height: 10)
+                }
+                .padding(12)
+            }
     }
 }
 

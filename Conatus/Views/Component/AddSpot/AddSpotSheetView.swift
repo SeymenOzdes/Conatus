@@ -20,7 +20,7 @@ struct AddSpotSheetView: View {
 
             locationSection
 
-            saveButton
+            addButton
         }
         .padding(18)
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
@@ -119,16 +119,24 @@ struct AddSpotSheetView: View {
         .transition(.opacity.combined(with: .scale(scale: 0.96)))
     }
 
-    private var saveButton: some View {
-        OnboardingPrimaryButton(
-            title: "Save Spot",
-            isEnabled: presenter.canSave
-        ) {
+    private var addButton: some View {
+        Button {
             guard let spot = presenter.buildUserSpot() else { return }
             onSave(spot)
+        } label: {
+            Label("Add", systemImage: "plus.circle.fill")
+                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                .foregroundStyle(presenter.canSave ? Color.white : Color.white.opacity(0.55))
+                .frame(maxWidth: .infinity, minHeight: 54)
+                .background(
+                    Capsule()
+                        .fill(presenter.canSave ? Color(hex: 0x1F3CFF) : Color.white.opacity(0.16))
+                )
         }
-        .padding(.horizontal, -24) // Cancel the OnboardingPrimaryButton's internal 24pt inset
+        .buttonStyle(.plain)
+        .disabled(!presenter.canSave)
         .padding(.top, 2)
+        .animation(.easeInOut(duration: 0.2), value: presenter.canSave)
     }
 
     // MARK: - Helpers

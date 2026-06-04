@@ -73,7 +73,7 @@ final class SpotViewController: UIViewController {
     private lazy var addButtonHost: UIHostingController<AddSpotButton> = {
         let host = UIHostingController(
             rootView: AddSpotButton { [weak self] in
-                self?.addSpotPresenter.present()
+                self?.presentAddSpot()
             }
         )
         host.view.backgroundColor = .clear
@@ -97,7 +97,7 @@ final class SpotViewController: UIViewController {
     /// Vertical distance from the top safe area to the dot's center while the
     /// Add Spot sheet covers the lower portion of the map. Approximates the
     /// midpoint of the visible map region above the sheet.
-    private static let centerDotTopOffset: CGFloat = 180
+    private static let centerDotTopOffset: CGFloat = 225
 
     // MARK: - Init
 
@@ -142,6 +142,10 @@ final class SpotViewController: UIViewController {
         }
         mapView.onSpotDeselected = { [weak self] in
             self?.detailPresenter.select(nil)
+        }
+        mapView.onRegionChanged = { [weak self] coordinate in
+            guard let self, self.addSpotPresenter.isPresented else { return }
+            self.addSpotPresenter.updateMapCenterCoordinate(coordinate)
         }
         spotView.addSubview(mapView)
         NSLayoutConstraint.activate([
@@ -279,6 +283,11 @@ final class SpotViewController: UIViewController {
     }
 
     // MARK: - Actions
+
+    private func presentAddSpot() {
+        addSpotPresenter.present()
+        addSpotPresenter.updateMapCenterCoordinate(mapView.centerCoordinate)
+    }
 
     private func selectFromSearchResult(_ result: SpotResult) {
         startupMapTask?.cancel()

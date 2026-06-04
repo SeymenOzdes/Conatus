@@ -35,6 +35,7 @@ final class SpotMapView: MKMapView {
     var onSpotSelected: ((Spot) -> Void)?
     var onSearchResultSelected: ((SpotResult) -> Void)?
     var onSpotDeselected: (() -> Void)?
+    var onRegionChanged: ((CLLocationCoordinate2D) -> Void)?
 
     // MARK: - Init
 
@@ -146,5 +147,9 @@ extension SpotMapView: MKMapViewDelegate {
     func mapView(_ mapView: MKMapView, didDeselect view: MKAnnotationView) {
         guard view.annotation is SpotAnnotation else { return }
         onSpotDeselected?()
+    }
+
+    func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+        onRegionChanged?(mapView.centerCoordinate)
     }
 }
