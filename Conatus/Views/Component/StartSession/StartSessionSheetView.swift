@@ -40,7 +40,6 @@ struct StartSessionSheetView: View {
         )
         .shadow(color: .black.opacity(0.38), radius: 30, x: 0, y: -6)
         .animation(.spring(duration: 0.32, bounce: 0.18), value: presenter.step)
-        .animation(.spring(duration: 0.28, bounce: 0.15), value: presenter.pickedSpot)
     }
 
     // MARK: - Header

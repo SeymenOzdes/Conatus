@@ -9,6 +9,8 @@ struct StartSessionLocationStep: View {
     @Bindable var presenter: StartSessionPresenter
     let pinnedSpots: [Spot]
 
+    private let suggestionsPanelHeight: CGFloat = 240
+
     var body: some View {
         @Bindable var searchVM = presenter.searchVM
 
@@ -21,15 +23,7 @@ struct StartSessionLocationStep: View {
                         searchVM.onQueryChanged()
                     }
 
-                SearchSuggestionsView(phase: searchVM.phase, query: searchVM.query) { id in
-                    guard let result = searchVM.result(forID: id) else { return }
-                    presenter.pick(result)
-                }
-                .transition(.opacity)
-
-                if shouldShowPinned {
-                    pinnedSection
-                }
+                suggestionsPanel
             }
         }
     }
@@ -38,18 +32,32 @@ struct StartSessionLocationStep: View {
         !pinnedSpots.isEmpty && presenter.searchVM.query.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
-    private var pinnedSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("PINNED")
-                .font(.system(size: 11, weight: .semibold))
-                .tracking(0.6)
-                .foregroundStyle(Color.white.opacity(0.65))
-                .padding(.top, 4)
+    private var suggestionsPanel: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                if shouldShowPinned {
+                    Text("PINNED")
+                        .font(.system(size: 11, weight: .semibold))
+                        .tracking(0.6)
+                        .foregroundStyle(Color.white.opacity(0.65))
+                        .padding(.top, 4)
 
-            SearchSuggestionsView(spots: pinnedSpots) { spot in
-                presenter.pick(spot)
+                    SearchSuggestionsView(spots: pinnedSpots) { spot in
+                        presenter.pick(spot)
+                    }
+                } else {
+                    SearchSuggestionsView(phase: presenter.searchVM.phase, query: presenter.searchVM.query) { id in
+                        guard let result = presenter.searchVM.result(forID: id) else { return }
+                        presenter.pick(result)
+                    }
+                    .transition(.opacity)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .scrollIndicators(.visible)
+        .frame(height: suggestionsPanelHeight, alignment: .top)
+        .clipped()
     }
 
     private func pickedRow(for picked: StartSessionPresenter.PickedSpot) -> some View {
@@ -89,7 +97,7 @@ struct StartSessionLocationStep: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.5)
         )
-        .transition(.opacity.combined(with: .scale(scale: 0.96)))
+        .transition(.opacity)
     }
 
     private func coordinateLabel(for picked: StartSessionPresenter.PickedSpot) -> String {

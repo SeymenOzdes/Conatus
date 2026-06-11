@@ -100,7 +100,7 @@ final class StartSessionPresenter {
             latitude: result.lat,
             longitude: result.lng
         )
-        searchVM.query = result.name
+        searchVM.finishSelection(with: result.name)
     }
 
     func pick(_ spot: Spot) {
@@ -111,12 +111,12 @@ final class StartSessionPresenter {
             latitude: spot.coordinate.latitude,
             longitude: spot.coordinate.longitude
         )
-        searchVM.query = spot.name
+        searchVM.finishSelection(with: spot.name)
     }
 
     func clearPickedLocation() {
         pickedSpot = nil
-        searchVM.query = ""
+        searchVM.finishSelection(with: "")
     }
 
     // MARK: - Build
@@ -152,6 +152,6 @@ final class StartSessionPresenter {
         crowdLevel = .moderate
         rating = 4
         notes = ""
-        searchVM.query = ""
+        searchVM.finishSelection(with: "")
     }
 }

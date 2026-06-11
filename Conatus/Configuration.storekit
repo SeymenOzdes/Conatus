@@ -1,0 +1,86 @@
+{
+  "identifier": "F316EFDF-0E68-4C44-909D-957B18D83077",
+  "nonConsumables": [],
+  "products": [],
+  "settings": {
+    "_applicationInternalID": "0",
+    "_developerTeamID": "6X4H6ASXW7",
+    "_failTransactionsEnabled": false,
+    "_storefront": "USA",
+    "applicationUsername": "",
+    "askToBuyEnabled": false,
+    "billingGracePeriodEnabled": false,
+    "disableDialogs": false,
+    "locale": "en_US",
+    "renewalBillingRetryEnabled": false,
+    "subscriptionRenewalRate": 0
+  },
+  "subscriptionGroups": [
+    {
+      "id": "25A578D0-FA1B-4A14-80FA-223F69B3E206",
+      "localizations": [
+        {
+          "locale": "en_US",
+          "name": "Conatus Pro"
+        }
+      ],
+      "name": "Conatus Pro",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "4.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "1C33CC88-B341-4F08-B49D-B43CE10F50CD",
+          "introductoryOffer": {
+            "internalID": "01608718-67C8-4F05-8C01-02D6B2B06083",
+            "paymentMode": "FREE_TRIAL",
+            "subscriptionPeriod": "P7D"
+          },
+          "localizations": [
+            {
+              "description": "Unlock AI surf verdicts, multi-spot best-window planning, and session logging.",
+              "displayName": "Conatus Pro Monthly",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "conatus.pro.monthly",
+          "referenceName": "Conatus Pro Monthly",
+          "subscriptionPeriod": "P1M",
+          "type": "RecurringSubscription",
+          "winbackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "29.99",
+          "familyShareable": false,
+          "groupNumber": 2,
+          "internalID": "0975B85E-54EA-47AE-87BB-51AF86179AB9",
+          "introductoryOffer": {
+            "internalID": "6E52197F-D5F5-4ED5-9418-DBD7615C350F",
+            "paymentMode": "FREE_TRIAL",
+            "subscriptionPeriod": "P7D"
+          },
+          "localizations": [
+            {
+              "description": "Unlock AI surf verdicts, multi-spot best-window planning, and session logging.",
+              "displayName": "Conatus Pro Annual",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "conatus.pro.annual",
+          "referenceName": "Conatus Pro Annual",
+          "subscriptionPeriod": "P1Y",
+          "type": "RecurringSubscription",
+          "winbackOffers": []
+        }
+      ]
+    }
+  ],
+  "version": {
+    "major": 4,
+    "minor": 0
+  }
+}
