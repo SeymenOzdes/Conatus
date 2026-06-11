@@ -69,6 +69,10 @@ final class HomeViewController: UIViewController {
         viewModel.refresh()
     }
 
+    func refreshContent() {
+        viewModel.refresh()
+    }
+
     // MARK: - Layout
 
     private func installContent() {

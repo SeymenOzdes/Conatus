@@ -25,6 +25,7 @@ final class RootViewController: UIViewController {
         detailPresenter: detailPresenter,
         addSpotPresenter: addSpotPresenter
     )
+    private lazy var settingsVC = SettingsViewController()
     private var currentChild: UIViewController?
 
     // MARK: - Tab Bar
@@ -159,7 +160,15 @@ final class RootViewController: UIViewController {
     // MARK: - Tab Switching
 
     private func show(tab: CustomTab) {
-        let target: UIViewController = (tab == .spots) ? spotVC : homeVC
+        let target: UIViewController
+        switch tab {
+        case .home:
+            target = homeVC
+        case .spots:
+            target = spotVC
+        case .settings:
+            target = settingsVC
+        }
 
         if tab != .spots {
             dismissDetail()
@@ -169,12 +178,25 @@ final class RootViewController: UIViewController {
             startSessionPresenter.dismiss()
         }
 
+        let previousChild = currentChild
+
+        if let settings = previousChild as? SettingsViewController, settings !== target {
+            settings.commitPendingChanges()
+        }
+
         // Ensure the target is attached lazily when first needed.
         ensureAttached(target)
         target.loadViewIfNeeded()
+
+        if tab == .home {
+            homeVC.refreshContent()
+        } else if tab == .settings, previousChild !== target {
+            settingsVC.refreshForDisplay()
+        }
+
         target.view.isHidden = false
 
-        if let current = currentChild, current !== target {
+        if let current = previousChild, current !== target {
             current.view.isHidden = true
         }
         currentChild = target
@@ -186,7 +208,8 @@ final class RootViewController: UIViewController {
         if vc.parent === self, vc.view.superview != nil { return }
 
         // If not already a child of this container, add it.
-        if vc.parent !== self { addChild(vc) }
+        let needsMove = vc.parent !== self
+        if needsMove { addChild(vc) }
 
         vc.view.translatesAutoresizingMaskIntoConstraints = false
         view.insertSubview(vc.view, belowSubview: tabBarHost.view)
@@ -198,7 +221,7 @@ final class RootViewController: UIViewController {
         ])
 
         // Call didMove only the first time we add as child.
-        if vc.parent !== self { vc.didMove(toParent: self) }
+        if needsMove { vc.didMove(toParent: self) }
     }
 
     // MARK: - Layout
