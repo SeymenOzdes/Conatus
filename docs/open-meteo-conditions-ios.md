@@ -107,3 +107,15 @@ select(SpotResult)
 ## Bağımlılıklar
 
 Yeni bağımlılık yok. `URLSession.shared` kullanılır.
+
+---
+
+## API Target Configuration
+
+iOS ağ çağrıları tek giriş noktası olan `APIConfiguration.current` üzerinden base URL seçer. `SearchService` ve `SpotConditionsService` aynı ayarı kullanır.
+
+- **Simulator + local backend:** `ConatusBackend` içinde `uv run uvicorn main:app --reload --port 8000` çalıştırın. Debug simulator build'leri varsayılan olarak `http://127.0.0.1:8000` kullanır; Xcode environment variable gerekmez.
+- **Physical device + local network backend:** backend'i LAN'a açarak başlatın: `uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000`. Xcode scheme environment variable olarak `CONATUS_API_BASE_URL=http://<Mac LAN IP>:8000` ekleyin.
+- **Production:** Release build'ler varsayılan olarak `https://api.conatus.app` kullanır. Debug build'de production'a bakmak için `CONATUS_API_BASE_URL=https://api.conatus.app` ayarlayın.
+
+`Info.plist` içinde `NSAllowsLocalNetworking` açık olduğu için local HTTP ve LAN geliştirme akışı desteklenir.

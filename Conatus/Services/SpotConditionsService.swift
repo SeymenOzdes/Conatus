@@ -175,15 +175,21 @@ enum SpotConditionsServiceError: Error {
 }
 
 struct SpotConditionsService {
+    private let baseURL: URL
     private let session: URLSession
 
-    init(session: URLSession = .shared) {
+    nonisolated init(configuration: APIConfiguration = .current,
+                     session: URLSession = .shared) {
+        self.baseURL = configuration.baseURL
         self.session = session
     }
 
     func fetchConditions(spotId: String) async throws -> SpotConditionsDTO {
-        let path = "/v1/spots/\(spotId)/conditions"
-        guard let url = URL(string: path, relativeTo: SearchService.baseURL)?.absoluteURL else {
+        let url = baseURL
+            .appendingPathComponent("v1/spots")
+            .appendingPathComponent(spotId)
+            .appendingPathComponent("conditions")
+        guard url.host != nil else {
             throw SpotConditionsServiceError.invalidURL
         }
 

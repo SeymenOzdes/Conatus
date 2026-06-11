@@ -11,7 +11,7 @@ enum AppLaunchConfiguration {
     /// Flip this for local testing:
     /// - true: app opens with onboarding every launch
     /// - false: app opens with the main menu unless onboarding has not been completed
-    static let forceStartWithOnboarding = true
+    static let forceStartWithOnboarding = false
 
     static var shouldStartWithOnboarding: Bool {
         forceStartWithOnboarding || !UserPreferences.current.hasCompletedOnboarding

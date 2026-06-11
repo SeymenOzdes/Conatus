@@ -48,11 +48,12 @@ enum SearchServiceError: Error {
 }
 
 struct SearchService {
-    static let baseURL = URL(string: "http://localhost:8000")!
-
+    private let baseURL: URL
     private let session: URLSession
 
-    init(session: URLSession = .shared) {
+    nonisolated init(configuration: APIConfiguration = .current,
+                     session: URLSession = .shared) {
+        self.baseURL = configuration.baseURL
         self.session = session
     }
 
@@ -77,7 +78,7 @@ struct SearchService {
 
     private func fetch(items: [URLQueryItem]) async throws -> SpotSearchResponse {
         var components = URLComponents(
-            url: Self.baseURL.appendingPathComponent("/v1/spots/search"),
+            url: baseURL.appendingPathComponent("v1/spots/search"),
             resolvingAgainstBaseURL: false
         )
         components?.queryItems = items
