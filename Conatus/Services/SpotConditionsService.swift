@@ -253,7 +253,7 @@ extension SpotConditionsDTO {
     }
 
     private func makeHourlyWaves() -> [WaveSample] {
-        return hourly.prefix(12).compactMap { slot -> WaveSample? in
+        return hourly.prefix(24).compactMap { slot -> WaveSample? in
             guard let height = slot.waveHeightM else { return nil }
             let date = parseDate(slot.timestamp) ?? Date()
             return WaveSample(

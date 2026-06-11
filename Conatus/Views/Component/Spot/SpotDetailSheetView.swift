@@ -72,7 +72,7 @@ struct SpotDetailSheetView: View {
     private var waveSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Waves — next 12 h")
+                Text("Waves — next 24 h")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
                 

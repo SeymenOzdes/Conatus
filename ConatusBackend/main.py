@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from db.client import close_pool, init_pool
+from db.client import close_pool, init_pool, is_pool_ready
 from routers import spots
 from services import geocoding_service, open_meteo_service
 
@@ -26,4 +26,4 @@ app.include_router(spots.router, prefix="/v1")
 
 @app.get("/healthz")
 async def healthz() -> dict:
-    return {"ok": True}
+    return {"ok": True, "database": is_pool_ready()}

@@ -13,7 +13,8 @@ collapse to one outbound pair of requests.
 
 Inland / no-coverage handling: if the marine API returns an error or a
 fully-null wave_height array, fetch_conditions() returns None and the
-endpoint surfaces { "conditions": null, "error": "..." }.
+endpoint surfaces { "conditions": null, "error": "..." }. Forecast weather
+data is best-effort; marine data is enough to render the spot.
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ log = logging.getLogger(__name__)
 
 _MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
 _FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+_METNO_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
 _USER_AGENT = "Conatus/0.1 (ozdesxseymen@gmail.com)"
 _HTTP_TIMEOUT_S = 5.0
 _CACHE_TTL_S = 30 * 60
@@ -131,8 +133,10 @@ async def _fetch_from_open_meteo(lat: float, lng: float) -> dict[str, Any] | Non
 
     marine, forecast = await asyncio.gather(marine_task, forecast_task)
 
-    if marine is None or forecast is None:
+    if marine is None:
         return None
+    if forecast is None:
+        forecast = await _fetch_metno_forecast(lat, lng)
 
     return _merge(marine, forecast)
 
@@ -142,7 +146,12 @@ async def _get_json(url: str, params: dict[str, Any]) -> dict[str, Any] | None:
     try:
         resp = await _client.get(url, params=params)
     except httpx.HTTPError as exc:
-        log.warning("open-meteo request failed for %s: %s", url, exc)
+        log.warning(
+            "open-meteo request failed for %s: %s: %r",
+            url,
+            type(exc).__name__,
+            exc,
+        )
         return None
 
     if resp.status_code != 200:
@@ -158,9 +167,82 @@ async def _get_json(url: str, params: dict[str, Any]) -> dict[str, Any] | None:
     return payload if isinstance(payload, dict) else None
 
 
-def _merge(marine: dict[str, Any], forecast: dict[str, Any]) -> dict[str, Any] | None:
+async def _fetch_metno_forecast(lat: float, lng: float) -> dict[str, Any] | None:
+    payload = await _get_json(
+        _METNO_URL,
+        {
+            "lat": lat,
+            "lon": lng,
+        },
+    )
+    if payload is None:
+        return None
+
+    timeseries = ((payload.get("properties") or {}).get("timeseries") or [])
+    if not isinstance(timeseries, list) or not timeseries:
+        return None
+
+    hourly_rows: list[dict[str, Any]] = []
+    for item in timeseries:
+        if not isinstance(item, dict):
+            continue
+        timestamp = item.get("time")
+        data = item.get("data") or {}
+        details = ((data.get("instant") or {}).get("details") or {})
+        if not timestamp or not details:
+            continue
+
+        next_1h = data.get("next_1_hours") or {}
+        precipitation = (next_1h.get("details") or {}).get("precipitation_amount")
+        symbol = ((next_1h.get("summary") or {}).get("symbol_code"))
+
+        hourly_rows.append(
+            {
+                "time": _compact_iso_hour(timestamp),
+                "temperature_2m": details.get("air_temperature"),
+                "precipitation": precipitation,
+                "weather_code": _metno_weather_code(symbol, details.get("cloud_area_fraction")),
+                "wind_speed_10m": _ms_to_kmh(details.get("wind_speed")),
+                "wind_direction_10m": details.get("wind_from_direction"),
+            }
+        )
+        if len(hourly_rows) >= _FORECAST_HOURS:
+            break
+
+    if not hourly_rows:
+        return None
+
+    current = hourly_rows[0]
+    first_winds = [
+        row.get("wind_speed_10m")
+        for row in hourly_rows[:3]
+        if row.get("wind_speed_10m") is not None
+    ]
+    current_gust = max(first_winds) if first_winds else current.get("wind_speed_10m")
+
+    return {
+        "current": {
+            "time": current["time"],
+            "temperature_2m": current.get("temperature_2m"),
+            "weather_code": current.get("weather_code"),
+            "wind_speed_10m": current.get("wind_speed_10m"),
+            "wind_direction_10m": current.get("wind_direction_10m"),
+            "wind_gusts_10m": current_gust,
+        },
+        "hourly": {
+            "time": [row["time"] for row in hourly_rows],
+            "temperature_2m": [row.get("temperature_2m") for row in hourly_rows],
+            "precipitation": [row.get("precipitation") for row in hourly_rows],
+            "weather_code": [row.get("weather_code") for row in hourly_rows],
+            "wind_speed_10m": [row.get("wind_speed_10m") for row in hourly_rows],
+            "wind_direction_10m": [row.get("wind_direction_10m") for row in hourly_rows],
+        },
+    }
+
+
+def _merge(marine: dict[str, Any], forecast: dict[str, Any] | None) -> dict[str, Any] | None:
     m_hourly = marine.get("hourly") or {}
-    f_hourly = forecast.get("hourly") or {}
+    f_hourly = (forecast or {}).get("hourly") or {}
 
     m_times: list[str] = m_hourly.get("time") or []
     wave_heights = m_hourly.get("wave_height") or []
@@ -173,7 +255,7 @@ def _merge(marine: dict[str, Any], forecast: dict[str, Any]) -> dict[str, Any] |
     best_windows = _build_best_windows(forecast_slots)
 
     m_current = marine.get("current") or {}
-    f_current = forecast.get("current") or {}
+    f_current = (forecast or {}).get("current") or {}
     current = _merge_current(m_current, f_current)
 
     if not current["timestamp"]:
@@ -432,6 +514,48 @@ def _sum_present(values: list[Any]) -> float | None:
 
 def _first_present(values: list[Any]) -> Any:
     return next((v for v in values if v is not None), None)
+
+
+def _ms_to_kmh(value: Any) -> float | None:
+    speed = _coerce_float(value)
+    return None if speed is None else round(speed * 3.6, 1)
+
+
+def _compact_iso_hour(timestamp: str) -> str:
+    normalized = timestamp.replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(normalized).strftime("%Y-%m-%dT%H:%M")
+    except ValueError:
+        return timestamp[:16]
+
+
+def _metno_weather_code(symbol: str | None, cloud_fraction: Any) -> int | None:
+    if symbol:
+        if "thunder" in symbol:
+            return 95
+        if "snow" in symbol or "sleet" in symbol:
+            return 71
+        if "rain" in symbol:
+            return 61
+        if "fog" in symbol:
+            return 45
+        if "cloudy" in symbol:
+            return 3
+        if "fair" in symbol:
+            return 1
+        if "clearsky" in symbol:
+            return 0
+
+    clouds = _coerce_float(cloud_fraction)
+    if clouds is None:
+        return None
+    if clouds < 12.5:
+        return 0
+    if clouds < 50:
+        return 1
+    if clouds < 87.5:
+        return 2
+    return 3
 
 
 def _round(value: float | None, digits: int) -> float | None:

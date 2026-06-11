@@ -12,6 +12,13 @@ from services.search_service import get_spot_by_id, search_by_geo, search_by_tex
 router = APIRouter(tags=["spots"])
 
 
+def require_pool():
+    try:
+        return get_pool()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
 @router.get("/spots/search", response_model=SearchResponse)
 async def search_spots(
     q: str | None = Query(default=None, min_length=1, max_length=100),
@@ -20,7 +27,7 @@ async def search_spots(
     radius: int = Query(default=30000, ge=1, le=200000),
     geocode_radius: int = Query(default=50000, ge=1, le=200000),
     limit: int = Query(default=10, ge=1, le=50),
-    pool=Depends(get_pool),
+    pool=Depends(require_pool),
 ) -> SearchResponse:
     text_mode = q is not None
     geo_mode = lat is not None and lng is not None
@@ -59,7 +66,7 @@ async def search_spots(
 @router.get("/spots/{spot_id}/conditions", response_model=SpotConditionsResponse)
 async def get_spot_conditions(
     spot_id: str,
-    pool=Depends(get_pool),
+    pool=Depends(require_pool),
 ) -> SpotConditionsResponse:
     spot = await get_spot_by_id(pool, spot_id)
     if spot is None:
