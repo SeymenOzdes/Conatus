@@ -12,12 +12,35 @@ import MapKit
 final class SpotAnnotation: NSObject, MKAnnotation {
     let spot: Spot
     let searchResult: SpotResult?
+    let key: String
     var coordinate: CLLocationCoordinate2D { spot.coordinate }
     var title: String? { spot.name }
 
     nonisolated init(spot: Spot, searchResult: SpotResult? = nil) {
         self.spot = spot
         self.searchResult = searchResult
+        self.key = searchResult.map(Self.key(for:)) ?? Self.key(for: spot)
+    }
+
+    nonisolated static func key(for result: SpotResult) -> String {
+        "search:\(result.spotId)"
+    }
+
+    nonisolated static func key(for spot: Spot) -> String {
+        "spot:\(spot.id.uuidString)"
+    }
+
+    func isEquivalent(to other: SpotAnnotation) -> Bool {
+        spot.name == other.spot.name
+            && spot.symbol == other.spot.symbol
+            && Self.coordinatesAreClose(spot.coordinate, other.spot.coordinate)
+            && searchResult?.spotId == other.searchResult?.spotId
+            && UIColor(spot.tint).isEqual(UIColor(other.spot.tint))
+    }
+
+    private static func coordinatesAreClose(_ lhs: CLLocationCoordinate2D, _ rhs: CLLocationCoordinate2D) -> Bool {
+        abs(lhs.latitude - rhs.latitude) < 0.0001
+            && abs(lhs.longitude - rhs.longitude) < 0.0001
     }
 }
 
@@ -68,12 +91,12 @@ final class SpotMapView: MKMapView {
 
     func renderDefaultSpots(animated: Bool) {
         setRegion(Self.defaultRegion, animated: animated)
-        replaceSpotAnnotations(with: Spot.samples.map { SpotAnnotation(spot: $0) })
+        reconcileSpotAnnotations(with: Spot.samples.map { SpotAnnotation(spot: $0) })
     }
 
     func renderSavedSpots(_ spots: [Spot], animated: Bool) {
         let annotations = spots.map { SpotAnnotation(spot: $0) }
-        replaceSpotAnnotations(with: annotations)
+        reconcileSpotAnnotations(with: annotations)
         focus(on: annotations, animated: animated)
     }
 
@@ -81,7 +104,7 @@ final class SpotMapView: MKMapView {
         let annotations = results.map { result in
             SpotAnnotation(spot: Spot.placeholder(from: result), searchResult: result)
         }
-        replaceSpotAnnotations(with: annotations)
+        reconcileSpotAnnotations(with: annotations)
         focus(on: annotations, animated: animated)
     }
 
@@ -92,9 +115,58 @@ final class SpotMapView: MKMapView {
         )
     }
 
-    private func replaceSpotAnnotations(with annotations: [SpotAnnotation]) {
-        removeAnnotations(self.annotations.compactMap { $0 as? SpotAnnotation })
-        addAnnotations(annotations)
+    private func reconcileSpotAnnotations(with annotations: [SpotAnnotation]) {
+        let currentAnnotations = self.annotations.compactMap { $0 as? SpotAnnotation }
+
+        var currentByKey: [String: SpotAnnotation] = [:]
+        var duplicateCurrentAnnotations: [SpotAnnotation] = []
+        for annotation in currentAnnotations {
+            if currentByKey[annotation.key] == nil {
+                currentByKey[annotation.key] = annotation
+            } else {
+                duplicateCurrentAnnotations.append(annotation)
+            }
+        }
+
+        var desiredByKey: [String: SpotAnnotation] = [:]
+        var desiredKeys: [String] = []
+        for annotation in annotations where desiredByKey[annotation.key] == nil {
+            desiredByKey[annotation.key] = annotation
+            desiredKeys.append(annotation.key)
+        }
+
+        var annotationsToRemove = duplicateCurrentAnnotations
+        for annotation in currentAnnotations {
+            guard let desiredAnnotation = desiredByKey[annotation.key] else {
+                annotationsToRemove.append(annotation)
+                continue
+            }
+
+            if !annotation.isEquivalent(to: desiredAnnotation) {
+                annotationsToRemove.append(annotation)
+            }
+        }
+
+        let removedAnnotationIDs = Set(annotationsToRemove.map(ObjectIdentifier.init))
+        let retainedKeys = Set(
+            currentAnnotations
+                .filter { !removedAnnotationIDs.contains(ObjectIdentifier($0)) }
+                .map(\.key)
+        )
+        let annotationsToAdd = desiredKeys.compactMap { key -> SpotAnnotation? in
+            guard let desiredAnnotation = desiredByKey[key] else { return nil }
+            if retainedKeys.contains(key) {
+                return nil
+            }
+            return desiredAnnotation
+        }
+
+        if !annotationsToRemove.isEmpty {
+            removeAnnotations(annotationsToRemove)
+        }
+        if !annotationsToAdd.isEmpty {
+            addAnnotations(annotationsToAdd)
+        }
     }
 
     private func focus(on annotations: [SpotAnnotation], animated: Bool) {

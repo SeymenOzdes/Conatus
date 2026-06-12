@@ -307,15 +307,17 @@ final class SpotViewController: UIViewController {
     }
 
     private func annotation(for result: SpotResult) -> SpotAnnotation? {
-        mapView.annotations
+        let spotAnnotations = mapView.annotations
             .compactMap { $0 as? SpotAnnotation }
-            .first { annotation in
-                if annotation.searchResult?.spotId == result.spotId {
-                    return true
-                }
-                return annotation.spot.name == result.name
-                    && annotation.spot.coordinate.isClose(to: result.coordinate)
-            }
+
+        if let keyedAnnotation = spotAnnotations.first(where: { $0.key == SpotAnnotation.key(for: result) }) {
+            return keyedAnnotation
+        }
+
+        return spotAnnotations.first { annotation in
+            annotation.spot.name == result.name
+                && annotation.spot.coordinate.isClose(to: result.coordinate)
+        }
     }
 
     private func addSearchResultAnnotation(_ result: SpotResult) -> SpotAnnotation {
